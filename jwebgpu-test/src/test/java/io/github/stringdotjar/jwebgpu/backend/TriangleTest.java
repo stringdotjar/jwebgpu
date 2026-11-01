@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package io.github.stringdotjar.jwebgpu.ffm;
+package io.github.stringdotjar.jwebgpu.backend;
 
 import org.junit.jupiter.api.Test;
 

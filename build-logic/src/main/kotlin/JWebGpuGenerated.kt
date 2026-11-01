@@ -1,4 +1,7 @@
 import org.gradle.api.Project
+import org.gradle.api.file.Directory
+import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.SourceSetContainer
@@ -22,15 +25,44 @@ open class JWebGpuGenerated(private val project: Project, private val generator:
    * @param sourceSet The name of the source set that receives the sources.
    */
   fun emit(kind: String, sourceSet: String = "main") {
-    val specDir = project.rootProject.layout.projectDirectory.dir("spec")
     val outDir = project.layout.buildDirectory.dir("generated/sources/jwebgpu/$sourceSet/java")
+    val task = register(kind, outDir)
+
+    project.extensions.getByType(SourceSetContainer::class.java).named(sourceSet) {
+      this.java.srcDir(task)
+    }
+
+    val suffix = sourceSet.replaceFirstChar(Char::uppercase)
+    val names = if (sourceSet == "main") {
+      listOf("compileJava", "javadoc", "sourcesJar", "checkstyleMain")
+    } else {
+      listOf("compile${suffix}Java", "checkstyle$suffix")
+    }
+    project.tasks.matching { it.name in names }.configureEach { dependsOn(task) }
+  }
+
+  /**
+   * Generates C sources with the generator. The files are not added to any source set: the module that compiles them
+   * (for example through CMake) takes the directory from the returned task.
+   *
+   * @param kind The value of the generator's `--emit` option (`jni-c`).
+   * @param sourceSet The name used for the output directory (`build/generated/sources/jwebgpu/<name>/cpp`).
+   * @return The task that writes the files. Make the build of the native code depend on it.
+   */
+  fun emitNative(kind: String, sourceSet: String = "main"): TaskProvider<JavaExec> {
+    val outDir = project.layout.buildDirectory.dir("generated/sources/jwebgpu/$sourceSet/cpp")
+    return register(kind, outDir)
+  }
+
+  private fun register(kind: String, outDir: Provider<Directory>): TaskProvider<JavaExec> {
+    val specDir = project.rootProject.layout.projectDirectory.dir("spec")
     val java = project.extensions.getByType(JavaPluginExtension::class.java)
     val toolchains = project.extensions.getByType(JavaToolchainService::class.java)
     val taskName = "generateJWebGpu${kind.split('-').joinToString("") { it.replaceFirstChar(Char::uppercase) }}Sources"
 
-    val task = project.tasks.register(taskName, JavaExec::class.java) {
+    return project.tasks.register(taskName, JavaExec::class.java) {
       group = "build"
-      description = "Generates the '$kind' Java sources from the specification."
+      description = "Generates the '$kind' sources from the specification."
       classpath = project.configurations.getByName("jwebgpuGenerator")
       mainClass.set("io.github.stringdotjar.jwebgpu.generator.Generator")
       javaLauncher.set(toolchains.launcherFor(java.toolchain))
@@ -48,17 +80,5 @@ open class JWebGpuGenerated(private val project: Project, private val generator:
         project.delete(outDir)
       }
     }
-
-    project.extensions.getByType(SourceSetContainer::class.java).named(sourceSet) {
-      this.java.srcDir(task)
-    }
-
-    val suffix = sourceSet.replaceFirstChar(Char::uppercase)
-    val names = if (sourceSet == "main") {
-      listOf("compileJava", "javadoc", "sourcesJar", "checkstyleMain")
-    } else {
-      listOf("compile${suffix}Java", "checkstyle$suffix")
-    }
-    project.tasks.matching { it.name in names }.configureEach { dependsOn(task) }
   }
 }
