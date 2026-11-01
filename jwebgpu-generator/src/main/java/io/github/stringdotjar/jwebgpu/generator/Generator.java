@@ -23,6 +23,7 @@
  */
 package io.github.stringdotjar.jwebgpu.generator;
 
+import io.github.stringdotjar.jwebgpu.generator.emit.ApiChecksEmitter;
 import io.github.stringdotjar.jwebgpu.generator.emit.ApiEmitter;
 import io.github.stringdotjar.jwebgpu.generator.emit.FfmEmitter;
 import io.github.stringdotjar.jwebgpu.generator.emit.GeneratedFile;
@@ -45,12 +46,14 @@ import java.util.Locale;
 /**
  * Entry point of the build-time code generator.
  *
- * <p>Usage: {@code Generator [--spec path/to/webgpu.json] [--emit api|ffm --out directory]}.
+ * <p>Usage: {@code Generator [--spec path/to/webgpu.json] [--emit api|ffm|api-checks --out directory]}.
  *
  * <ul>
  *   <li>Without {@code --emit}, the generator loads the specification and prints a summary of what it found.
  *   <li>With {@code --emit api}, it writes the sources of the platform-neutral API into the {@code --out} directory
  *       (see {@link ApiEmitter}). The directory is created if needed, and every file is replaced.
+ *   <li>With {@code --emit api-checks}, it writes a plain Java class that checks the generated API against the
+ *       specification, for the test source set of a module (see {@link ApiChecksEmitter}).
  *   <li>With {@code --emit ffm}, it writes the sources of the desktop backend the same way (see
  *       {@link FfmEmitter}).
  * </ul>
@@ -94,11 +97,14 @@ public final class Generator {
       } else if (emit.equals("api") && out != null) {
         int count = write(ApiEmitter.emit(model), Path.of(out));
         System.out.println("Wrote " + count + " API source files to " + out);
+      } else if (emit.equals("api-checks") && out != null) {
+        int count = write(ApiChecksEmitter.emit(model), Path.of(out));
+        System.out.println("Wrote " + count + " API check source file to " + out);
       } else if (emit.equals("ffm") && out != null) {
         int count = write(FfmEmitter.emit(model), Path.of(out));
         System.out.println("Wrote " + count + " FFM backend source files to " + out);
       } else {
-        System.err.println("Usage: Generator [--spec file] [--emit api|ffm --out directory]");
+        System.err.println("Usage: Generator [--spec file] [--emit api|ffm|api-checks --out directory]");
         System.exit(2);
       }
     } catch (JsonException | SpecException e) {

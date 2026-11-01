@@ -1,6 +1,12 @@
 plugins {
   id("jwebgpu.java-base")
   java
+  id("jwebgpu.generated-sources")
+}
+
+// The checks of the generated API are generated too, as plain Java, so the tests need no reflection.
+jwebgpuGenerated {
+  emit("api-checks", "test")
 }
 
 java {
