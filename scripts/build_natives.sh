@@ -9,10 +9,14 @@
 #   linux-x86_64, linux-aarch64      Vulkan (X11 and Wayland surfaces) and Null.
 #   windows-x86_64, windows-aarch64  Direct3D 12, Direct3D 11, Vulkan and Null.
 #   macos-x86_64, macos-aarch64      Metal and Null.
+#   android-arm64-v8a, android-x86_64
+#                                    Vulkan and Null, cross compiled with the Android NDK from Linux
+#                                    or macOS. Only 64-bit ABIs are built, because the generated
+#                                    struct layouts assume 64-bit pointers.
 #   fetch                            Only downloads the Dawn sources and their dependencies.
 #
-# A target must be built on its own platform, except the two macOS targets, which can be cross
-# compiled from either Mac architecture. Android is not supported by this script yet.
+# A desktop target must be built on its own platform, except the two macOS targets, which can be cross
+# compiled from either Mac architecture.
 #
 # Prerequisites (see COMPILING.md for the full list):
 #   - git, python3, cmake 3.22+, and Ninja.
@@ -20,6 +24,8 @@
 #   - Windows: Visual Studio 2022 Build Tools, run from a shell where cl.exe is on PATH
 #     (for example after vcvarsall.bat, or the ilammy/msvc-dev-cmd action in CI).
 #   - macOS: Xcode command line tools.
+#   - Android: the Android NDK (r28 or newer), found through JWEBGPU_ANDROID_NDK, ANDROID_NDK_HOME,
+#     ANDROID_NDK_ROOT, or ~/Android/Sdk/ndk/28.2.13676358.
 #
 # Environment variables (all optional):
 #   JWEBGPU_DAWN_CACHE  Where Dawn sources and build trees live. Default: ~/.cache/jwebgpu/dawn
@@ -28,6 +34,10 @@
 #   JWEBGPU_WAYLAND     ON or OFF. Linux only. Default: ON. It needs no extra packages.
 #   JWEBGPU_OUT_DIR     Where the finished library is copied. Default: the target's folder under
 #                       jwebgpu-ffm/src/main/resources/natives.
+#   JWEBGPU_MAX_GLIBC   Linux only. Fails the build if the library needs a newer glibc than this
+#                       (for example 2.28). Default: no limit.
+#   JWEBGPU_ANDROID_API Lowest Android API level the library supports. Default: 26
+#   JWEBGPU_ANDROID_NDK Path to the Android NDK. See the prerequisites above.
 #   MACOSX_DEPLOYMENT_TARGET  Oldest macOS release the library supports. Default: 12.0
 #
 # The Dawn revision is pinned in scripts/dawn.version. The first run downloads about 1.3 GB of sources
@@ -133,7 +143,33 @@ library_name() {
     linux) echo "libwebgpu_dawn.so" ;;
     windows) echo "webgpu_dawn.dll" ;;
     macos) echo "libwebgpu_dawn.dylib" ;;
+    android) echo "libwebgpu_dawn.so" ;;
   esac
+}
+
+# Prints the Android NDK directory, or fails with a hint.
+android_ndk() {
+  local candidate
+  for candidate in "${JWEBGPU_ANDROID_NDK:-}" "${ANDROID_NDK_HOME:-}" "${ANDROID_NDK_ROOT:-}" \
+    "${HOME}/Android/Sdk/ndk/28.2.13676358"; do
+    if [ -n "${candidate}" ] && [ -f "${candidate}/build/cmake/android.toolchain.cmake" ]; then
+      echo "${candidate}"
+      return
+    fi
+  done
+  die "Android NDK not found; set JWEBGPU_ANDROID_NDK to the NDK directory."
+}
+
+# Prints the directory of the NDK's LLVM tools for this host.
+android_llvm_bin() {
+  local ndk="$1" dir
+  for dir in "${ndk}"/toolchains/llvm/prebuilt/*/bin; do
+    if [ -x "${dir}/llvm-nm" ]; then
+      echo "${dir}"
+      return
+    fi
+  done
+  die "No LLVM tools found in ${ndk}."
 }
 
 # Fails if the library exports no wgpu functions. On Linux and macOS it also fails if anything else is
@@ -142,6 +178,7 @@ verify_exports() {
   local os="$1" lib="$2" symbols bad count
   case "${os}" in
     linux) symbols="$(nm -D --defined-only "${lib}" | awk '{print $3}')" ;;
+    android) symbols="$("${ANDROID_LLVM_BIN}/llvm-nm" -D --defined-only "${lib}" | awk '{print $3}')" ;;
     macos) symbols="$(nm -gU "${lib}" | awk '{print $3}' | sed 's/^_//')" ;;
     *)
       if command -v dumpbin >/dev/null 2>&1; then
@@ -172,8 +209,32 @@ report_linux_dependencies() {
   log "Shared library dependencies (NEEDED):"
   readelf -d "${lib}" | awk '/NEEDED/ {print "    " $5}'
   if command -v objdump >/dev/null 2>&1; then
-    log "Highest glibc symbol version required:"
-    objdump -T "${lib}" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -n 1 | sed 's/^/    /'
+    local glibc
+    glibc="$(objdump -T "${lib}" | grep -o 'GLIBC_[0-9.]*' | sed 's/^GLIBC_//' | sort -uV | tail -n 1)"
+    log "Highest glibc symbol version required: ${glibc}"
+    if [ -n "${JWEBGPU_MAX_GLIBC:-}" ] && [ -n "${glibc}" ]; then
+      local newest
+      newest="$(printf '%s\n%s\n' "${glibc}" "${JWEBGPU_MAX_GLIBC}" | sort -V | tail -n 1)"
+      [ "${newest}" = "${JWEBGPU_MAX_GLIBC}" ] ||
+        die "The library needs glibc ${glibc}, newer than the allowed ${JWEBGPU_MAX_GLIBC}."
+    fi
+  fi
+}
+
+# Checks that the window systems that were switched on really made it into the Linux build. The CMake
+# cache records what Dawn was configured with. X11 also leaves the name of the library Dawn loads at run
+# time with dlopen in the binary, so that is checked as well.
+verify_linux_surfaces() {
+  local lib="$1" build_dir="$2" x11="$3" wayland="$4" cache
+  cache="${build_dir}/CMakeCache.txt"
+  if [ "${x11}" = "ON" ]; then
+    grep -q '^DAWN_USE_X11:BOOL=ON$' "${cache}" || die "X11 was switched on, but Dawn was configured without it."
+    grep -aq 'libX11-xcb.so' "${lib}" || die "X11 was switched on, but the library has no X11 support."
+    log "X11 (Xlib and XCB) surface support: present"
+  fi
+  if [ "${wayland}" = "ON" ]; then
+    grep -q '^DAWN_USE_WAYLAND:BOOL=ON$' "${cache}" || die "Wayland was switched on, but Dawn was configured without it."
+    log "Wayland surface support: present"
   fi
 }
 
@@ -181,7 +242,8 @@ build() {
   local os arch cmake_arch
   case "${TARGET}" in
     linux-x86_64 | linux-aarch64 | windows-x86_64 | windows-aarch64 | macos-x86_64 | macos-aarch64) ;;
-    android-*) die "Android is built by scripts/build_android_natives.sh, which does not exist yet." ;;
+    android-arm64-v8a | android-x86_64) ;;
+    android-*) die "Only the 64-bit Android ABIs (arm64-v8a and x86_64) are supported." ;;
     *) usage ;;
   esac
   os="${TARGET%%-*}"
@@ -226,9 +288,36 @@ build() {
   )
   while IFS= read -r line; do args+=("${line}"); done < <(generator_args)
 
+  local x11="${JWEBGPU_X11:-ON}" wayland="${JWEBGPU_WAYLAND:-ON}"
   case "${os}" in
+    android)
+      local ndk map_file
+      ndk="$(android_ndk)"
+      ANDROID_LLVM_BIN="$(android_llvm_bin "${ndk}")"
+      map_file="$(native_path "${SCRIPT_DIR}/natives/linux-exports.map")"
+      # Same export rules as Linux. The static C++ runtime means apps do not need libc++_shared.so,
+      # so the library cannot clash with another library's copy of it.
+      local compile_flags="-fvisibility=hidden -ffunction-sections -fdata-sections"
+      args+=(
+        "-DCMAKE_TOOLCHAIN_FILE=$(native_path "${ndk}/build/cmake/android.toolchain.cmake")"
+        "-DANDROID_ABI=${arch}"
+        "-DANDROID_PLATFORM=android-${JWEBGPU_ANDROID_API:-26}"
+        -DANDROID_STL=c++_static
+        -DDAWN_ENABLE_VULKAN=ON
+        -DDAWN_ENABLE_D3D11=OFF
+        -DDAWN_ENABLE_D3D12=OFF
+        -DDAWN_ENABLE_METAL=OFF
+        -DDAWN_USE_X11=OFF
+        -DDAWN_USE_WAYLAND=OFF
+        -DTINT_BUILD_HLSL_WRITER=OFF
+        -DTINT_BUILD_MSL_WRITER=OFF
+        "-DCMAKE_C_FLAGS=${compile_flags}"
+        "-DCMAKE_CXX_FLAGS=${compile_flags} -fvisibility-inlines-hidden"
+        "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--gc-sections -Wl,--exclude-libs,ALL -Wl,--strip-all -Wl,--version-script=${map_file}"
+      )
+      log "Android: ABI ${arch}, API ${JWEBGPU_ANDROID_API:-26}, NDK ${ndk}"
+      ;;
     linux)
-      local x11="${JWEBGPU_X11:-ON}" wayland="${JWEBGPU_WAYLAND:-ON}"
       local map_file
       map_file="$(native_path "${SCRIPT_DIR}/natives/linux-exports.map")"
       # Hidden visibility plus a version script keep every C++ internal symbol private. Static
@@ -260,6 +349,11 @@ build() {
         -DTINT_BUILD_HLSL_WRITER=ON
         -DTINT_BUILD_MSL_WRITER=OFF
         -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+        # Dependencies with older CMake files ignore CMAKE_MSVC_RUNTIME_LIBRARY unless this policy is on,
+        # and abseil picks its runtime with its own switch. Without both, objects built against the DLL
+        # runtime (/MD) fail to link with the rest of Dawn (/MT).
+        -DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+        -DABSL_MSVC_STATIC_RUNTIME=ON
       )
       ;;
     macos)
@@ -298,9 +392,16 @@ build() {
   verify_exports "${os}" "${built}"
   if [ "${os}" = "linux" ]; then
     report_linux_dependencies "${built}"
+    verify_linux_surfaces "${built}" "${build_dir}" "${x11}" "${wayland}"
   fi
 
-  local out_dir="${JWEBGPU_OUT_DIR:-${REPO_ROOT}/jwebgpu-ffm/src/main/resources/natives/${TARGET}}"
+  # Desktop libraries go into the FFM backend's resources. Android libraries go into the JNI
+  # backend's jniLibs folder, one subfolder per ABI, which is where the Android build expects them.
+  local default_out="${REPO_ROOT}/jwebgpu-ffm/src/main/resources/natives/${TARGET}"
+  if [ "${os}" = "android" ]; then
+    default_out="${REPO_ROOT}/jwebgpu-jni/src/main/jniLibs/${arch}"
+  fi
+  local out_dir="${JWEBGPU_OUT_DIR:-${default_out}}"
   mkdir -p "${out_dir}"
   cp -f "${built}" "${out_dir}/${lib_name}"
   log "Done: ${out_dir}/${lib_name} ($(wc -c < "${out_dir}/${lib_name}") bytes)"

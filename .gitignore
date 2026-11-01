@@ -75,3 +75,6 @@ Thumbs.db
 *~
 *.*#
 *#*#
+
+# Dawn libraries for the Android backend, produced by scripts/build_natives.sh android-* or by CI.
+jwebgpu-jni/src/main/jniLibs/
