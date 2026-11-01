@@ -36,16 +36,25 @@ import io.github.stringdotjar.jwebgpu.GpuBufferUsage;
 import io.github.stringdotjar.jwebgpu.GpuCallbackMode;
 import io.github.stringdotjar.jwebgpu.GpuCommandBuffer;
 import io.github.stringdotjar.jwebgpu.GpuCommandEncoder;
+import io.github.stringdotjar.jwebgpu.GpuColorTargetState;
+import io.github.stringdotjar.jwebgpu.GpuColorWriteMask;
 import io.github.stringdotjar.jwebgpu.GpuCompositeAlphaMode;
+import io.github.stringdotjar.jwebgpu.GpuCreatePipelineAsyncStatus;
 import io.github.stringdotjar.jwebgpu.GpuDevice;
 import io.github.stringdotjar.jwebgpu.GpuDeviceDescriptor;
 import io.github.stringdotjar.jwebgpu.GpuExtent3D;
+import io.github.stringdotjar.jwebgpu.GpuFragmentState;
 import io.github.stringdotjar.jwebgpu.GpuInstance;
 import io.github.stringdotjar.jwebgpu.GpuMapAsyncStatus;
 import io.github.stringdotjar.jwebgpu.GpuMapMode;
 import io.github.stringdotjar.jwebgpu.GpuPresentMode;
 import io.github.stringdotjar.jwebgpu.GpuQueue;
+import io.github.stringdotjar.jwebgpu.GpuRenderPipeline;
+import io.github.stringdotjar.jwebgpu.GpuRenderPipelineDescriptor;
 import io.github.stringdotjar.jwebgpu.GpuRequestAdapterOptions;
+import io.github.stringdotjar.jwebgpu.GpuShaderModule;
+import io.github.stringdotjar.jwebgpu.GpuShaderModuleDescriptor;
+import io.github.stringdotjar.jwebgpu.GpuShaderSourceWGSL;
 import io.github.stringdotjar.jwebgpu.GpuSurface;
 import io.github.stringdotjar.jwebgpu.GpuSurfaceCapabilities;
 import io.github.stringdotjar.jwebgpu.GpuSurfaceConfiguration;
@@ -76,6 +85,7 @@ import java.util.function.BooleanSupplier;
  * <ol>
  *   <li>install the backend, create an instance, ask for a Vulkan adapter and a device,
  *   <li>draw a triangle off screen and read the pixels back,
+ *   <li>compile a pipeline asynchronously, so a callback arrives from a thread of the native library,
  *   <li>render 10,000 frames and count how many objects the thread allocated (it must be none),
  *   <li>time the cost of single calls,
  *   <li>draw the triangle on the screen for about five seconds and count allocations of that path too.
@@ -128,6 +138,7 @@ final class DeviceRun extends Thread {
       device = requestDevice();
       Debug.startAllocCounting();
       offscreen();
+      workerThreadCallback();
       allocationsAndTimings();
       onscreen();
       device.release();
@@ -247,6 +258,61 @@ final class DeviceRun extends Thread {
     texture.release();
     queue.release();
     log("OFFSCREEN OK");
+  }
+
+  /** Compiles a pipeline asynchronously, so the callback comes from a thread of Dawn, which Android has to attach. */
+  private void workerThreadCallback() {
+    GpuShaderSourceWGSL wgsl = new GpuShaderSourceWGSL();
+    wgsl.code = "@vertex fn vs(@builtin(vertex_index) i : u32) -> @builtin(position) vec4f {"
+        + " return vec4f(f32(i), 0.0, 0.0, 1.0); }"
+        + " @fragment fn fs() -> @location(0) vec4f { return vec4f(1.0); }";
+    GpuShaderModuleDescriptor smd = new GpuShaderModuleDescriptor();
+    smd.nextInChain = wgsl;
+    GpuShaderModule shader = device.createShaderModule(smd);
+    GpuRenderPipelineDescriptor rpd = new GpuRenderPipelineDescriptor();
+    rpd.vertex.module = shader;
+    rpd.vertex.entryPoint = "vs";
+    GpuFragmentState fragment = new GpuFragmentState();
+    fragment.module = shader;
+    fragment.entryPoint = "fs";
+    fragment.targetCount = 1;
+    fragment.targets[0].format = GpuTextureFormat.RGBA8_UNORM;
+    fragment.targets[0].writeMask = GpuColorWriteMask.ALL;
+    rpd.fragment = fragment;
+
+    GpuRenderPipeline[] pipeline = new GpuRenderPipeline[1];
+    String[] where = new String[1];
+    GpuCreatePipelineAsyncStatus[] status = new GpuCreatePipelineAsyncStatus[1];
+    // No processEvents() while waiting: the result can only arrive on a thread of the native library.
+    device.createRenderPipelineAsync(rpd, GpuCallbackMode.ALLOW_SPONTANEOUS, (s, result, message) -> {
+      synchronized (pipeline) {
+        pipeline[0] = result;
+        status[0] = s;
+        where[0] = Thread.currentThread().getName();
+      }
+    });
+    long deadline = System.nanoTime() + 20_000_000_000L;
+    while (System.nanoTime() < deadline) {
+      synchronized (pipeline) {
+        if (status[0] != null) {
+          break;
+        }
+      }
+      try {
+        Thread.sleep(2);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
+    log("async pipeline status " + status[0] + " on thread '" + where[0] + "' (this thread is '"
+        + Thread.currentThread().getName() + "')");
+    check(status[0] == GpuCreatePipelineAsyncStatus.SUCCESS && pipeline[0] != null,
+        "a callback from a native thread arrives");
+    if (pipeline[0] != null) {
+      pipeline[0].release();
+    }
+    shader.release();
   }
 
   private void allocationsAndTimings() {

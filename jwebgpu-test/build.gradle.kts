@@ -154,7 +154,7 @@ val testJni = tasks.register<Test>("testJni") {
   systemProperty("jwebgpu.backend", "jni")
   systemProperty("jwebgpu.specDir", rootProject.layout.projectDirectory.dir("spec").asFile.absolutePath)
   doFirst {
-    if (glueLibrary.get().asFile.isFile) {
+    if (glueLibrary.get().asFile.isFile && file(dawnLibrary.get()).isFile) {
       systemProperty("jwebgpu.library.path", dawnLibrary.get())
       systemProperty("jwebgpu.jni.library.path", glueLibrary.get().asFile.absolutePath)
     }
