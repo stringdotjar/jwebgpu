@@ -39,6 +39,39 @@ tasks.withType<AbstractPublishToMaven>().configureEach {
   }
 }
 
+// The jar also tells GraalVM native image about the library, so an application's native image embeds it and the loader
+// finds it as a resource at run time. The file is written at build time (never committed) from the same target and
+// library names the loader uses.
+val metadataDir = layout.buildDirectory.dir("generated/native-image-metadata")
+val metadataGroup = rootProject.property("groupId") as String
+val generateNativeImageMetadata = tasks.register("generateNativeImageMetadata") {
+  group = "build"
+  description = "Writes the native image resource metadata of $target."
+  val file = metadataDir.map { it.file("META-INF/native-image/$metadataGroup/${project.name}/reachability-metadata.json") }
+  val resources = listOf("natives/$target/${JWebGpuNatives.libraryName(target)}", "natives/$target/licenses.txt")
+  inputs.property("resources", resources)
+  outputs.file(file)
+  doLast {
+    val out = file.get().asFile
+    out.parentFile.mkdirs()
+    out.writeText(
+      resources.joinToString(
+        separator = ",\n",
+        prefix = "{\n  \"resources\": [\n",
+        postfix = "\n  ]\n}\n"
+      ) { "    { \"glob\": \"$it\" }" }
+    )
+  }
+}
+
+sourceSets.named("main") {
+  resources.srcDir(generateNativeImageMetadata.map { metadataDir })
+}
+
+tasks.matching { it.name == "processResources" || it.name == "sourcesJar" }.configureEach {
+  dependsOn(generateNativeImageMetadata)
+}
+
 // There is no Java code, so the Javadoc jar is empty. The sources jar must not carry the library, so it holds the
 // license texts that belong to the binary instead.
 mavenPublishing {
@@ -51,7 +84,7 @@ mavenPublishing {
 }
 
 tasks.withType<Jar>().matching { it.name == "sourcesJar" }.configureEach {
-  exclude("natives/**")
+  exclude("natives/**", "META-INF/native-image/**")
   from(rootProject.layout.projectDirectory.file("LICENSE"))
   from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md"))
 }
