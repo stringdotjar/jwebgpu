@@ -77,6 +77,65 @@ jobs:
         run: ./gradlew :jwebgpu-test:test --no-daemon --warning-mode all
         shell: bash
 
+  browser:
+    name: Browser test (headless Chrome)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: 'gradle'
+
+      - name: Set up Node.js (LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Find Chrome
+        # The runner image ships Google Chrome. Failing here (instead of skipping later) keeps the test honest.
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || true)"
+          if [ -z "$CHROME" ]; then
+            echo "Google Chrome is not installed on this runner." >&2
+            exit 1
+          fi
+          "$CHROME" --version
+          node --version
+          echo "JWEBGPU_CHROME=$CHROME" >> "$GITHUB_ENV"
+        shell: bash
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run the browser test (JavaScript and WasmGC)
+        # -Pjwebgpu.requireBrowser=true turns a missing Node.js or Chrome into a failure instead of a skip.
+        run: ./gradlew :samples:web-triangle:browserTest -Pjwebgpu.requireBrowser=true --no-daemon --warning-mode all
+        shell: bash
+
+      - name: Summarize the results
+        if: always()
+        run: |
+          LOG=samples/web-triangle/build/browser-test/console.log
+          for page in js.html wasm.html; do
+            echo "== $page =="
+            grep -E "^\[$page\] .*(PASS|FAIL)" "$LOG" | grep -E "RESULT|FAIL" || echo "no result line (the page did not finish)"
+            echo "$(grep -cE "^\[$page\] .*\bPASS " "$LOG") checks passed"
+          done
+        shell: bash
+
+      - name: Upload the browser console log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-console-log
+          path: samples/web-triangle/build/browser-test/console.log
+          if-no-files-found: ignore
+
   javadoc:
     name: Javadoc (doclint)
     runs-on: ubuntu-latest
