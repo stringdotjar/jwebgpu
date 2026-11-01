@@ -1,0 +1,110 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu;
+
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * The values of the texture format enum.
+ *
+ * <p>Each constant carries the exact number that the native library uses, in {@link #value}. Use {@link #of(int)} to
+ * turn a number back into a constant.
+ *
+ * <p>C type: {@code WGPUTextureFormat}.
+ */
+public enum GpuTextureFormat {
+
+  /** Indicates no value is passed for this argument. See {@code SentinelValues}. */
+  UNDEFINED(0),
+
+  R8_UNORM(1),
+  R8_SNORM(2),
+  R8_UINT(3),
+  R8_SINT(4),
+  R16_UNORM(5),
+  R16_SNORM(6),
+  R16_UINT(7),
+  R16_SINT(8),
+  R16_FLOAT(9),
+  RG8_UNORM(10),
+  RG8_SNORM(11),
+  RG8_UINT(12),
+  RG8_SINT(13),
+  R32_FLOAT(14),
+  R32_UINT(15),
+  R32_SINT(16),
+  RG16_UNORM(17),
+  RG16_SNORM(18),
+  RG16_UINT(19),
+  RG16_SINT(20),
+  RG16_FLOAT(21),
+  RGBA8_UNORM(22),
+  RGBA8_UNORM_SRGB(23),
+  RGBA8_SNORM(24),
+  RGBA8_UINT(25),
+  RGBA8_SINT(26),
+  BGRA8_UNORM(27),
+  BGRA8_UNORM_SRGB(28),
+  RGB10_A2_UINT(29),
+  RGB10_A2_UNORM(30),
+  RG11_B10_UFLOAT(31),
+  RGB9_E5_UFLOAT(32),
+  RG32_FLOAT(33),
+  RG32_UINT(34),
+  RG32_SINT(35),
+  RGBA16_UNORM(36),
+  RGBA16_SNORM(37),
+  RGBA16_UINT(38),
+  RGBA16_SINT(39),
+  RGBA16_FLOAT(40),
+  RGBA32_FLOAT(41),
+  RGBA32_UINT(42),
+  RGBA32_SINT(43),
+  STENCIL8(44),
+  DEPTH16_UNORM(45),
+  DEPTH24_PLUS(46),
+  DEPTH24_PLUS_STENCIL8(47),
+  DEPTH32_FLOAT(48),
+  DEPTH32_FLOAT_STENCIL8(49),
+  BC1_RGBA_UNORM(50),
+  BC1_RGBA_UNORM_SRGB(51),
+  BC2_RGBA_UNORM(52),
+  BC2_RGBA_UNORM_SRGB(53),
+  BC3_RGBA_UNORM(54),
+  BC3_RGBA_UNORM_SRGB(55),
+  BC4_R_UNORM(56),
+  BC4_R_SNORM(57),
+  BC5_RG_UNORM(58),
+  BC5_RG_SNORM(59),
+  BC6H_RGB_UFLOAT(60),
+  BC6H_RGB_FLOAT(61),
+  BC7_RGBA_UNORM(62),
+  BC7_RGBA_UNORM_SRGB(63),
+  ETC2_RGB8_UNORM(64),
+  ETC2_RGB8_UNORM_SRGB(65),
+  ETC2_RGB8A1_UNORM(66),
+  ETC2_RGB8A1_UNORM_SRGB(67),
+  ETC2_RGBA8_UNORM(68),
+  ETC2_RGBA8_UNORM_SRGB(69),
+  EAC_R11_UNORM(70),

@@ -1,0 +1,117 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * An instance, one of the objects of the WebGPU API.
+ *
+ * <p>Every method is abstract: the installed backend provides the implementation. Release the object with
+ * {@link #release()} when you are done with it.
+ *
+ * <p>C type: {@code WGPUInstance}.
+ */
+public abstract class GpuInstance extends GpuObject {
+
+  /** Creates the object. Only backends call this. */
+  protected GpuInstance() {}
+
+  /**
+   * Creates a {@code GpuSurface}, see {@code Surface-Creation} for more details.
+   *
+   * @param descriptor The description of the {@code GpuSurface} to create.
+   * @return A new {@code GpuSurface} for this descriptor (or an error {@code GpuSurface}).
+   */
+  public abstract GpuSurface createSurface(GpuSurfaceDescriptor descriptor);
+
+  /**
+   * Refills an existing wrapper instead of allocating a new one.
+   *
+   * <p>This is the garbage-free variant of {@link #createSurface}: the native handle held by {@code into} changes, but
+   * no Java object is created. Use it for objects that are created every frame. See that method for the full
+   * description.
+   *
+   * @param descriptor The description of the {@code GpuSurface} to create.
+   * @param into The existing wrapper to refill. It must have been created by the same backend. Its previous native
+   *     handle is released first, if it has one.
+   * @return {@code into}, now holding the object.
+   */
+  public abstract GpuSurface createSurface(GpuSurfaceDescriptor descriptor, @NotNull GpuSurface into);
+
+  /**
+   * Get the list of {@code GpuWGSLLanguageFeatureName} values supported by the instance.
+   *
+   * @param features The features. Pass an object to fill. The call overwrites its fields and copies every string, so
+   *     there is nothing to free afterwards.
+   */
+  public abstract void getWGSLLanguageFeatures(GpuSupportedWGSLLanguageFeatures features);
+
+  /**
+   * Tells whether this instance has the WGSL language feature.
+   *
+   * @param feature The feature.
+   * @return {@code true} or {@code false}, depending on the check.
+   */
+  public abstract boolean hasWGSLLanguageFeature(GpuWGSLLanguageFeatureName feature);
+
+  /**
+   * Processes asynchronous events on this {@code WGPUInstance}, calling any callbacks for asynchronous operations
+   * created with {@code GpuCallbackMode.ALLOW_PROCESS_EVENTS}.
+   *
+   * <p>See {@code Process-Events} for more information.
+   */
+  public abstract void processEvents();
+
+  /**
+   * Performs the request adapter operation on this instance.
+   *
+   * <p>The operation finishes later. The result is delivered to the callback, depending on the mode, when the instance
+   * processes events or waits (see {@link GpuInstance#processEvents()}).
+   *
+   * @param options The options.
+   * @param mode When the callback may run. See {@link GpuCallbackMode}.
+   * @param callback Receives the result of the operation. See {@link GpuRequestAdapterCallback}.
+   * @return The id of the future that tracks this operation. Pass it to {@link GpuInstance#waitAny}.
+   */
+  public abstract long requestAdapter(
+      @Nullable GpuRequestAdapterOptions options,
+      GpuCallbackMode mode,
+      GpuRequestAdapterCallback callback);
+
+  /**
+   * Wait for at least one WGPUFuture in {@code futures} to complete, and call callbacks of the respective completed
+   * asynchronous operations.
+   *
+   * <p>See {@code Wait-Any} for more information.
+   *
+   * @param futures The futures to wait for. Only the first {@code futureCount} elements are used. The completed flag of
+   *     each one is updated by the call.
+   * @param futureCount The number of elements of {@code futures} to use.
+   * @param timeoutNS The timeout NS.
+   * @return The result, or {@code null} if the native library returned a value this API does not know.
+   */
+  public abstract @Nullable GpuWaitStatus waitAny(GpuFutureWaitInfo[] futures, int futureCount, long timeoutNS);
+}

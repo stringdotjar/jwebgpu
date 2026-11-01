@@ -1,0 +1,213 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu;
+
+import java.nio.ByteBuffer;
+
+/**
+ * A queue, one of the objects of the WebGPU API.
+ *
+ * <p>Every method is abstract: the installed backend provides the implementation. Release the object with
+ * {@link #release()} when you are done with it.
+ *
+ * <p>C type: {@code WGPUQueue}.
+ */
+public abstract class GpuQueue extends GpuObject {
+
+  /** Creates the object. Only backends call this. */
+  protected GpuQueue() {}
+
+  /**
+   * Performs the on submitted work done operation on this queue.
+   *
+   * <p>The operation finishes later. The result is delivered to the callback, depending on the mode, when the instance
+   * processes events or waits (see {@link GpuInstance#processEvents()}).
+   *
+   * @param mode When the callback may run. See {@link GpuCallbackMode}.
+   * @param callback Receives the result of the operation. See {@link GpuQueueWorkDoneCallback}.
+   * @return The id of the future that tracks this operation. Pass it to {@link GpuInstance#waitAny}.
+   */
+  public abstract long onSubmittedWorkDone(GpuCallbackMode mode, GpuQueueWorkDoneCallback callback);
+
+  /**
+   * Sets the label of this queue.
+   *
+   * @param label The label.
+   */
+  public abstract void setLabel(String label);
+
+  /**
+   * Performs the submit operation on this queue.
+   *
+   * @param commands The commands. Only the first {@code commandCount} elements are used.
+   * @param commandCount The number of elements of {@code commands} to use.
+   */
+  public abstract void submit(GpuCommandBuffer[] commands, int commandCount);
+
+  /**
+   * Produces a {@code DeviceError} both content-timeline ({@code size} alignment) and device-timeline
+   * errors defined by the WebGPU specification.
+   *
+   * @param buffer The buffer.
+   * @param bufferOffset The buffer offset.
+   * @param data The buffer that holds the data: the bytes from its position up to its limit are used. The position and
+   *     limit are not changed. A direct buffer avoids a copy.
+   */
+  public abstract void writeBuffer(GpuBuffer buffer, long bufferOffset, ByteBuffer data);
+
+  /**
+   * Produces a {@code DeviceError} both content-timeline ({@code size} alignment) and device-timeline
+   * errors defined by the WebGPU specification.
+   *
+   * @param buffer The buffer.
+   * @param bufferOffset The buffer offset.
+   * @param data The array that holds the data.
+   * @param dataOffset The index of the first element of {@code data} to use.
+   * @param dataCount The number of bytes to use.
+   */
+  public abstract void writeBuffer(GpuBuffer buffer, long bufferOffset, byte[] data, int dataOffset, int dataCount);
+
+  /**
+   * Produces a {@code DeviceError} both content-timeline ({@code size} alignment) and device-timeline
+   * errors defined by the WebGPU specification.
+   *
+   * @param buffer The buffer.
+   * @param bufferOffset The buffer offset.
+   * @param data The array that holds the data.
+   * @param dataOffset The index of the first element of {@code data} to use.
+   * @param dataCount The number of shorts to use. This counts elements, not bytes.
+   */
+  public abstract void writeBuffer(GpuBuffer buffer, long bufferOffset, short[] data, int dataOffset, int dataCount);
+
+  /**
+   * Produces a {@code DeviceError} both content-timeline ({@code size} alignment) and device-timeline
+   * errors defined by the WebGPU specification.
+   *
+   * @param buffer The buffer.
+   * @param bufferOffset The buffer offset.
+   * @param data The array that holds the data.
+   * @param dataOffset The index of the first element of {@code data} to use.
+   * @param dataCount The number of ints to use. This counts elements, not bytes.
+   */
+  public abstract void writeBuffer(GpuBuffer buffer, long bufferOffset, int[] data, int dataOffset, int dataCount);
+
+  /**
+   * Produces a {@code DeviceError} both content-timeline ({@code size} alignment) and device-timeline
+   * errors defined by the WebGPU specification.
+   *
+   * @param buffer The buffer.
+   * @param bufferOffset The buffer offset.
+   * @param data The array that holds the data.
+   * @param dataOffset The index of the first element of {@code data} to use.
+   * @param dataCount The number of floats to use. This counts elements, not bytes.
+   */
+  public abstract void writeBuffer(GpuBuffer buffer, long bufferOffset, float[] data, int dataOffset, int dataCount);
+
+  /**
+   * Performs the write texture operation on this queue.
+   *
+   * @param destination The destination.
+   * @param data The buffer that holds the data: the bytes from its position up to its limit are used. The position and
+   *     limit are not changed. A direct buffer avoids a copy.
+   * @param dataLayout The data layout.
+   * @param writeSize The write size.
+   */
+  public abstract void writeTexture(
+      GpuTexelCopyTextureInfo destination,
+      ByteBuffer data,
+      GpuTexelCopyBufferLayout dataLayout,
+      GpuExtent3D writeSize);
+
+  /**
+   * Performs the write texture operation on this queue.
+   *
+   * @param destination The destination.
+   * @param data The array that holds the data.
+   * @param dataOffset The index of the first element of {@code data} to use.
+   * @param dataCount The number of bytes to use.
+   * @param dataLayout The data layout.
+   * @param writeSize The write size.
+   */
+  public abstract void writeTexture(
+      GpuTexelCopyTextureInfo destination,
+      byte[] data,
+      int dataOffset,
+      int dataCount,
+      GpuTexelCopyBufferLayout dataLayout,
+      GpuExtent3D writeSize);
+
+  /**
+   * Performs the write texture operation on this queue.
+   *
+   * @param destination The destination.
+   * @param data The array that holds the data.
+   * @param dataOffset The index of the first element of {@code data} to use.
+   * @param dataCount The number of shorts to use. This counts elements, not bytes.
+   * @param dataLayout The data layout.
+   * @param writeSize The write size.
+   */
+  public abstract void writeTexture(
+      GpuTexelCopyTextureInfo destination,
+      short[] data,
+      int dataOffset,
+      int dataCount,
+      GpuTexelCopyBufferLayout dataLayout,
+      GpuExtent3D writeSize);
+
+  /**
+   * Performs the write texture operation on this queue.
+   *
+   * @param destination The destination.
+   * @param data The array that holds the data.
+   * @param dataOffset The index of the first element of {@code data} to use.
+   * @param dataCount The number of ints to use. This counts elements, not bytes.
+   * @param dataLayout The data layout.
+   * @param writeSize The write size.
+   */
+  public abstract void writeTexture(
+      GpuTexelCopyTextureInfo destination,
+      int[] data,
+      int dataOffset,
+      int dataCount,
+      GpuTexelCopyBufferLayout dataLayout,
+      GpuExtent3D writeSize);
+
+  /**
+   * Performs the write texture operation on this queue.
+   *
+   * @param destination The destination.
+   * @param data The array that holds the data.
+   * @param dataOffset The index of the first element of {@code data} to use.
+   * @param dataCount The number of floats to use. This counts elements, not bytes.
+   * @param dataLayout The data layout.
+   * @param writeSize The write size.
+   */
+  public abstract void writeTexture(
+      GpuTexelCopyTextureInfo destination,
+      float[] data,
+      int dataOffset,
+      int dataCount,
+      GpuTexelCopyBufferLayout dataLayout,
+      GpuExtent3D writeSize);
+}

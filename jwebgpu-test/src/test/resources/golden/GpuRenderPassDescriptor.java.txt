@@ -1,0 +1,114 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu;
+
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * A reusable render pass descriptor struct.
+ *
+ * <p>Extend it by chaining {@link GpuRenderPassMaxDrawCount} onto {@link #nextInChain}.
+ *
+ * <p>Create it once and refill the fields, because a new descriptor allocates. {@link #reset()} restores the defaults
+ * from the C header.
+ *
+ * <p>C type: {@code WGPURenderPassDescriptor}.
+ */
+public final class GpuRenderPassDescriptor {
+
+  /**
+   * The first extension struct chained onto this one, or {@code null} for none.
+   *
+   * <p>Extension structs form a singly linked list through their {@code next} field.
+   */
+  public @Nullable GpuChainedStruct nextInChain;
+
+  /**
+   * The label.
+   *
+   * <p>A {@code null} string means "not set".
+   */
+  public @Nullable String label;
+
+  /** The number of valid elements in {@link #colorAttachments}. */
+  public int colorAttachmentCount;
+
+  /**
+   * The color attachments.
+   *
+   * <p>Only the first {@link #colorAttachmentCount} elements are used. The capacity is fixed when the struct is
+   * created, so check it before you fill the array.
+   */
+  public GpuRenderPassColorAttachment[] colorAttachments;
+
+  /** The depth stencil attachment. */
+  public @Nullable GpuRenderPassDepthStencilAttachment depthStencilAttachment;
+
+  /** The occlusion query set. */
+  public @Nullable GpuQuerySet occlusionQuerySet;
+
+  /** The timestamp writes. */
+  public @Nullable GpuPassTimestampWrites timestampWrites;
+
+  /**
+   * Creates the struct with the defaults of the C header and the default array capacities (1 for
+   * {@link #colorAttachments}).
+   */
+  public GpuRenderPassDescriptor() {
+    this(1);
+  }
+
+  /**
+   * Creates the struct with the defaults of the C header and arrays of the given capacities.
+   *
+   * <p>The arrays are allocated once here. Elements that are structs are allocated too, so that filling the arrays
+   * later allocates nothing.
+   *
+   * @param colorAttachmentsCapacity How many elements {@link #colorAttachments} can hold.
+   */
+  public GpuRenderPassDescriptor(int colorAttachmentsCapacity) {
+    colorAttachments = new GpuRenderPassColorAttachment[colorAttachmentsCapacity];
+    for (int i = 0; i < colorAttachments.length; i++) {
+      colorAttachments[i] = new GpuRenderPassColorAttachment();
+    }
+    reset();
+  }
+
+  /**
+   * Restores every field to the default of the C header.
+   *
+   * <p>Nested structs and array elements are reset too. Arrays keep their capacity, and nothing is allocated.
+   */
+  public void reset() {
+    nextInChain = null;
+    label = null;
+    colorAttachmentCount = 0;
+    for (int i = 0; i < colorAttachments.length; i++) {
+      colorAttachments[i].reset();
+    }
+    depthStencilAttachment = null;
+    occlusionQuerySet = null;
+    timestampWrites = null;
+  }
+}
