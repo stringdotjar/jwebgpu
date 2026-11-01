@@ -10,12 +10,16 @@
 //
 // The browser is found in this order: the JWEBGPU_CHROME environment variable, then google-chrome,
 // google-chrome-stable, chromium, chromium-browser and chrome on the PATH. When there is none, the script prints
-// "SKIPPED" and exits with 0, so a machine without a browser does not fail the build.
+// "SKIPPED" and exits with 0, so a machine without a browser does not fail the build. Set JWEBGPU_REQUIRE_BROWSER=1
+// (CI does) to make a missing browser an error instead.
+//
+// When JWEBGPU_BROWSER_LOG names a file, everything Chrome prints (the page's console output and Chrome's own
+// messages) is written to it, one line per message, so CI can keep it as an artifact.
 //
 // The default flags select a software WebGPU adapter (SwiftShader on Vulkan), so no graphics card is needed.
 // Override them with JWEBGPU_CHROME_FLAGS (a space separated list). "--no-sandbox" is added when running as root.
 //
-// Exit codes: 0 passed or skipped, 1 a page failed, 2 bad usage.
+// Exit codes: 0 passed or skipped, 1 a page failed or a required browser is missing, 2 bad usage.
 
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -34,7 +38,15 @@ const DEFAULT_FLAGS = [
   '--disable-vulkan-surface',
   '--disable-gpu-sandbox',
 ];
+const REQUIRE_BROWSER = ['1', 'true'].includes((process.env.JWEBGPU_REQUIRE_BROWSER ?? '').toLowerCase());
+const LOG_FILE = process.env.JWEBGPU_BROWSER_LOG || null;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm' };
+
+function writeLog(text) {
+  if (LOG_FILE) {
+    fs.appendFileSync(LOG_FILE, `${text}\n`);
+  }
+}
 
 function findChrome() {
   if (process.env.JWEBGPU_CHROME) {
@@ -84,6 +96,7 @@ async function runPage(chrome, flags, port, page) {
         const line = buffer.slice(0, at);
         buffer = buffer.slice(at + 1);
         const match = line.match(/CONSOLE[^\]]*\]\s*"(.*)", source: /);
+        writeLog(`[${page}] ${match ? match[1] : line}`);
         if (match) {
           lines.push(match[1]);
           console.log(`  [${page}] ${match[1]}`);
@@ -123,6 +136,14 @@ async function main() {
     process.exit(2);
   }
   const chrome = findChrome();
+  if (LOG_FILE) {
+    fs.mkdirSync(path.dirname(path.resolve(LOG_FILE)), { recursive: true });
+    fs.writeFileSync(LOG_FILE, '');
+  }
+  if (!chrome && REQUIRE_BROWSER) {
+    console.error('ERROR: no Chrome or Chromium found, and JWEBGPU_REQUIRE_BROWSER is set (set JWEBGPU_CHROME).');
+    process.exit(1);
+  }
   if (!chrome) {
     console.log('SKIPPED: no Chrome or Chromium found (set JWEBGPU_CHROME to run the browser test).');
     return;
