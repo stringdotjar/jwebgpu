@@ -54,6 +54,10 @@ dependencies {
   "jniHostImplementation"(libs.jetbrains.annotations)
   testImplementation(jniHost.output)
 
+  // The Dawn library of this machine. The jwebgpu-ffm jar carries no library, so the tests get it from the natives
+  // module of the host platform only.
+  JWebGpuNatives.hostTarget()?.let { testRuntimeOnly(project(":" + JWebGpuNatives.moduleName(it))) }
+
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(platform(libs.junit.bom))
   testImplementation(libs.junit.jupiter)
@@ -70,7 +74,7 @@ tasks.named<Test>("test") {
   // The FFM backend calls native code, which Java only allows when it is asked for.
   jvmArgs("--enable-native-access=ALL-UNNAMED")
 
-  // The native library for the FFM tests. By default the tests use the one packed into the jwebgpu-ffm resources
+  // The native library for the FFM tests. By default the tests use the one from the natives module of this machine
   // (build it with scripts/build_natives.sh) and skip when there is none. Pass -Pjwebgpu.library=/path/to/lib to use
   // another file.
   providers.gradleProperty("jwebgpu.library").orNull?.let { systemProperty("jwebgpu.library.path", it) }
@@ -95,15 +99,8 @@ tasks.named<Test>("test") {
 // Builds libjwebgpu_jni for this machine from the generated C glue, linked against the Dawn library. The task is
 // skipped when the Dawn library is missing, and the JNI tests are then skipped too.
 val osName = org.gradle.internal.os.OperatingSystem.current()
-val cpu = System.getProperty("os.arch").replace("amd64", "x86_64")
 val dawnLibrary = providers.gradleProperty("jwebgpu.library").orElse(
-  rootProject.layout.projectDirectory.file(
-    "jwebgpu-ffm/src/main/resources/natives/" + when {
-      osName.isMacOsX -> "macos-$cpu/libwebgpu_dawn.dylib"
-      osName.isWindows -> "windows-$cpu/webgpu_dawn.dll"
-      else -> "linux-$cpu/libwebgpu_dawn.so"
-    }
-  ).asFile.absolutePath
+  JWebGpuNatives.hostTarget()?.let { JWebGpuNatives.libraryFile(rootDir, it).absolutePath } ?: "unsupported-host"
 )
 val glueBuildDir = layout.buildDirectory.dir("jni-host")
 val glueLibrary = glueBuildDir.map {

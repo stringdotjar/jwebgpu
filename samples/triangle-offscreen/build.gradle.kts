@@ -12,6 +12,9 @@ java {
 
 dependencies {
   implementation(project(":jwebgpu-ffm"))
+
+  // The Dawn library of this machine. A program that ships to several platforms adds one natives module for each.
+  JWebGpuNatives.hostTarget()?.let { runtimeOnly(project(":" + JWebGpuNatives.moduleName(it))) }
 }
 
 application {

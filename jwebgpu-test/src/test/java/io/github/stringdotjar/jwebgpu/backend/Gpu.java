@@ -76,7 +76,8 @@ final class Gpu {
     try {
       JWebGpuFfm.install();
     } catch (IllegalStateException e) {
-      assumeTrue(false, "no native library is packed into jwebgpu-ffm; build it with scripts/build_natives.sh");
+      assumeTrue(false,
+          "no jwebgpu-natives jar holds a library for this machine; build it with scripts/build_natives.sh");
     }
   }
 
