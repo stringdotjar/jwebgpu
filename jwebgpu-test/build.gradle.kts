@@ -23,6 +23,14 @@ dependencies {
 tasks.named<Test>("test") {
   useJUnitPlatform()
 
+  // The FFM backend calls native code, which Java only allows when it is asked for.
+  jvmArgs("--enable-native-access=ALL-UNNAMED")
+
+  // The native library for the FFM tests. By default the tests use the one packed into the jwebgpu-ffm resources
+  // (build it with scripts/build_natives.sh) and skip when there is none. Pass -Pjwebgpu.library=/path/to/lib to use
+  // another file.
+  providers.gradleProperty("jwebgpu.library").orNull?.let { systemProperty("jwebgpu.library.path", it) }
+
   // The generator tests read the vendored specification files.
   systemProperty("jwebgpu.specDir", rootProject.layout.projectDirectory.dir("spec").asFile.absolutePath)
 
