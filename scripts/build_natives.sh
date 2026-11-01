@@ -222,14 +222,16 @@ report_linux_dependencies() {
 }
 
 # Checks that the window systems that were switched on really made it into the Linux build. The CMake
-# cache records what Dawn was configured with. X11 also leaves the name of the library Dawn loads at run
-# time with dlopen in the binary, so that is checked as well.
+# cache records what Dawn was configured with, and the object file of Dawn's X11 loader only exists when
+# X11 support was compiled. (Looking for library names as strings in the binary is not reliable: on
+# x86_64 the compiler can store short strings as immediate values in the code.)
 verify_linux_surfaces() {
-  local lib="$1" build_dir="$2" x11="$3" wayland="$4" cache
+  local build_dir="$1" x11="$2" wayland="$3" cache
   cache="${build_dir}/CMakeCache.txt"
   if [ "${x11}" = "ON" ]; then
     grep -q '^DAWN_USE_X11:BOOL=ON$' "${cache}" || die "X11 was switched on, but Dawn was configured without it."
-    grep -aq 'libX11-xcb.so' "${lib}" || die "X11 was switched on, but the library has no X11 support."
+    [ -n "$(find "${build_dir}" -name 'X11Functions.cpp.o' -print -quit)" ] ||
+      die "X11 was switched on, but Dawn's X11 support was not compiled."
     log "X11 (Xlib and XCB) surface support: present"
   fi
   if [ "${wayland}" = "ON" ]; then
@@ -392,7 +394,7 @@ build() {
   verify_exports "${os}" "${built}"
   if [ "${os}" = "linux" ]; then
     report_linux_dependencies "${built}"
-    verify_linux_surfaces "${built}" "${build_dir}" "${x11}" "${wayland}"
+    verify_linux_surfaces "${build_dir}" "${x11}" "${wayland}"
   fi
 
   # Desktop libraries go into the FFM backend's resources. Android libraries go into the JNI

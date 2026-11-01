@@ -206,7 +206,9 @@ jobs:
       - name: Install the Android NDK
         # The runner image ships the Android SDK. Pin the NDK so every build uses the same compiler.
         run: |
-          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "ndk;${NDK_VERSION}" > /dev/null
+          # "yes" is killed by a broken pipe once sdkmanager stops reading, which pipefail would treat
+          # as a failure, so its exit status is ignored.
+          (yes || true) | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "ndk;${NDK_VERSION}" > /dev/null
           echo "JWEBGPU_ANDROID_NDK=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
 
       - name: Restore the Dawn sources cache
