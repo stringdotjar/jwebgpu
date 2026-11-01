@@ -110,6 +110,17 @@ class ApiEmitterGoldenTest {
   }
 
   @Test
+  void bindGroupSettersHaveAnOverloadWithoutDynamicOffsets() {
+    for (String type : new String[] {"GpuRenderPassEncoder", "GpuComputePassEncoder", "GpuRenderBundleEncoder"}) {
+      String text = source(type);
+      assertTrue(text.contains("public void setBindGroup(int groupIndex, @Nullable GpuBindGroup group) {\n"
+          + "    setBindGroup(groupIndex, group, EMPTY_INTS, 0);\n  }"), type);
+      assertTrue(text.contains("public abstract void setBindGroup(\n      int groupIndex,"), type);
+    }
+    assertTrue(source("GpuObject").contains("protected static final int[] EMPTY_INTS = new int[0];"));
+  }
+
+  @Test
   void emittingTwiceGivesTheSameFiles() {
     List<GeneratedFile> again = ApiEmitter.emit(SpecFiles.load());
     assertEquals(files, again);

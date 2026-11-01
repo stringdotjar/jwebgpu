@@ -80,6 +80,10 @@ final class ObjectEmitter {
         + "example in a shutdown method, and keep long-lived objects in fields instead of creating them every "
         + "frame.");
     w.openType("public abstract class GpuObject");
+    w.doc("An empty array that backends and subclasses share, for methods that take an optional array.\n\n"
+        + "<p>Passing it (with a count of 0) instead of a new array keeps per-frame calls free of allocation.");
+    w.line("protected static final int[] EMPTY_INTS = new int[0];");
+    w.blank();
     w.doc("Creates the object. Only backends call this.");
     w.line("protected GpuObject() {}");
     w.blank();

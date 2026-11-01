@@ -176,13 +176,12 @@ class ZeroAllocationTest {
     GpuCommandBuffer commands = encoder.finish(null);
     GpuCommandBuffer[] submit = new GpuCommandBuffer[1];
     float[] data = {0f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f};
-    int[] none = new int[0];
     commands.release();
     passEncoder.release();
     encoder.release();
 
     for (int i = 0; i < WARMUP; i++) {
-      frame(device, queue, pass, pipeline, bindGroup, vertices, data, none, encoder, passEncoder, commands, submit);
+      frame(device, queue, pass, pipeline, bindGroup, vertices, data, encoder, passEncoder, commands, submit);
     }
 
     long thread = Thread.currentThread().threadId();
@@ -192,7 +191,7 @@ class ZeroAllocationTest {
 
     long before = bean.getThreadAllocatedBytes(thread);
     for (int i = 0; i < FRAMES; i++) {
-      frame(device, queue, pass, pipeline, bindGroup, vertices, data, none, encoder, passEncoder, commands, submit);
+      frame(device, queue, pass, pipeline, bindGroup, vertices, data, encoder, passEncoder, commands, submit);
     }
     long after = bean.getThreadAllocatedBytes(thread);
 
@@ -268,13 +267,13 @@ class ZeroAllocationTest {
   }
 
   private static void frame(GpuDevice device, GpuQueue queue, GpuRenderPassDescriptor pass,
-      GpuRenderPipeline pipeline, GpuBindGroup bindGroup, GpuBuffer vertices, float[] data, int[] none,
+      GpuRenderPipeline pipeline, GpuBindGroup bindGroup, GpuBuffer vertices, float[] data,
       GpuCommandEncoder encoder, GpuRenderPassEncoder passEncoder, GpuCommandBuffer commands,
       GpuCommandBuffer[] submit) {
     device.createCommandEncoder(null, encoder);
     encoder.beginRenderPass(pass, passEncoder);
     passEncoder.setPipeline(pipeline);
-    passEncoder.setBindGroup(0, bindGroup, none, 0);
+    passEncoder.setBindGroup(0, bindGroup);
     passEncoder.setVertexBuffer(0, vertices, 0, GpuConstants.WHOLE_SIZE);
     passEncoder.draw(3, 1, 0, 0);
     passEncoder.end();

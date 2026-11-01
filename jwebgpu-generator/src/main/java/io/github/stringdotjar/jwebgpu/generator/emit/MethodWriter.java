@@ -130,7 +130,16 @@ final class MethodWriter {
 
     List<Variant> all = new ArrayList<>();
     for (List<Param> v : variants) {
-      all.add(new Variant(v, false));
+      all.add(new Variant(v, false, false));
+    }
+    if (!iface && hasDynamicOffsets(base)) {
+      List<Param> plain = new ArrayList<>();
+      for (Param p : base) {
+        if (p != null && !p.name.equals("dynamicOffsets") && !p.name.equals("dynamicOffsetCount")) {
+          plain.add(p);
+        }
+      }
+      all.add(new Variant(plain, false, true));
     }
     if (refills && f.returns() != null && f.returns().kind() == TypeKind.OBJECT && !f.isAsync()) {
       for (List<Param> v : variants) {
@@ -138,7 +147,7 @@ final class MethodWriter {
         refill.add(new Param("@" + w.imp("org.jetbrains.annotations.NotNull") + " " + ret.rawType(), "into",
             "The existing wrapper to refill. It must have been created by the same backend. Its previous native "
                 + "handle is released first, if it has one."));
-        all.add(new Variant(refill, true));
+        all.add(new Variant(refill, true, false));
       }
     }
     all.sort((a, b) -> Integer.compare(a.params.size(), b.params.size()));
@@ -150,6 +159,11 @@ final class MethodWriter {
   private void emitOne(SourceWriter w, String name, String description, Variant v, Ret ret, boolean iface) {
     String text = description;
     List<String> tags = new ArrayList<>();
+    if (v.plain) {
+      text = "Same as the full version, without dynamic offsets.\n\n<p>This is the common case: it behaves like "
+          + "passing an empty offsets array with a count of 0, and it allocates nothing. See "
+          + "{@link #" + name + "} for the full description.";
+    }
     if (v.refill) {
       text = "Refills an existing wrapper instead of allocating a new one.\n\n<p>This is the garbage-free variant of "
           + "{@link #" + name + "}: the native handle held by {@code into} changes, but no Java object is created. "
@@ -173,9 +187,25 @@ final class MethodWriter {
       w.line(returnType.substring(0, space));
       returnType = returnType.substring(space + 1);
     }
+    if (v.plain) {
+      w.call("public void " + name + "(", args, ") {");
+      w.line("  " + name + "(groupIndex, group, EMPTY_INTS, 0);");
+      w.line("}");
+      w.blank();
+      return;
+    }
     String head = (iface ? "" : "public abstract ") + returnType + " " + name + "(";
     w.call(head, args, ");");
     w.blank();
+  }
+
+  private static boolean hasDynamicOffsets(List<Param> base) {
+    for (Param p : base) {
+      if (p != null && p.name.equals("dynamicOffsets")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private List<Param> params(SourceWriter w, GpuFunction f) {
@@ -338,6 +368,6 @@ final class MethodWriter {
   private record Ret(String type, String rawType, String doc, String refillDoc) {
   }
 
-  private record Variant(List<Param> params, boolean refill) {
+  private record Variant(List<Param> params, boolean refill, boolean plain) {
   }
 }
