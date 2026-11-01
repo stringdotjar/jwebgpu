@@ -35,9 +35,9 @@ The rules that shape this layout:
   WebGPU object (`GpuDevice`, `GpuQueue`, `GpuBuffer`, and so on), plus a small hand-written core: the `JWebGpu` entry
   point, the `GpuBackend` interface that each backend implements, and a neutral description of a window surface. It depends
   on nothing except the JetBrains annotations.
-- **`jwebgpu-ffm`**: The desktop backend. It implements the API classes with Java's Foreign Function and Memory API,
-  holding a `MemorySegment` per object. It loads the Dawn native library for the current OS and architecture from the jar
-  and marshals descriptors through a reused scratch arena.
+- **`jwebgpu-ffm`**: The desktop backend. It implements the API classes with Java's Foreign Function and Memory API, holding
+  a plain `long` handle per object. It loads the Dawn native library for the current OS and architecture from the jar and
+  marshals descriptors through a reused per-thread scratch block. See [The FFM backend](#the-ffm-backend).
 - **`jwebgpu-jni`**: The Android backend, built as an Android library (AAR). Android's runtime does not include the FFM API, so
   this backend uses `native` methods that call a small generated C layer wrapping `webgpu.h`. Native handles are stored as
   `long`s.
@@ -116,7 +116,7 @@ Every WebGPU object is a typed Java wrapper (`GpuTexture`) instead of a raw `lon
 - Nested arrays (color attachments, bind group entries) are fixed-capacity arrays plus a `count` field, so they never
   reallocate.
 - Each backend **marshals** a descriptor into its own pre-allocated scratch memory at call time: FFM writes into a reused
-  `MemorySegment`, JNI writes into a reused direct `ByteBuffer` that the C glue reads, and TeaVM fills cached JavaScript
+  per-thread block of native memory, JNI writes into a reused direct `ByteBuffer` that the C glue reads, and TeaVM fills cached JavaScript
   objects. Nothing is allocated per call.
 - Callbacks (device lost, errors, async requests) use stubs and listener objects created once.
 
@@ -126,6 +126,46 @@ Some WebGPU objects are created every frame: the surface texture and its view, t
 command buffer. For every API method that returns an object, the generator also emits an overload that takes an existing
 wrapper to refill, for example `device.createCommandEncoder(desc, encoder)`. The native handle changes, but no Java object is
 allocated.
+
+## The FFM backend
+
+Most of `jwebgpu-ffm` is generated (`--emit ffm`): one `FfmGpu...` class per API object, one `FfmGpu...Struct` marshaller
+per struct, `FfmChains` for extension structs, and `FfmCallbacks` with the callback stubs. Only a few small classes are
+hand-written: `JWebGpuFfm` (the installer), `NativeLoader`, `Scratch`, `Mem`, `Native` and `CallbackTable`.
+
+How a call stays free of allocation:
+
+- **Handles and pointers are `long`.** Every downcall describes object handles and pointers as 64-bit integers instead of
+  `MemorySegment`s. On every supported 64-bit target (System V x86-64, Win64 and AArch64) a pointer and a 64-bit integer use
+  the same register, so the call is identical, and no segment object is needed per pointer. The two kinds of values that C
+  passes by value and that are not plain integers (`WGPUStringView` and the callback info structs) keep a struct layout and
+  use two segments that every thread preallocates. A returned `WGPUFuture` is one 64-bit integer, which all three targets
+  return like a `long`.
+- **One method handle per C function**, in a nested `Fn` class of the object that calls it, called with `invokeExact`. The
+  nested class loads lazily, so a program only binds the functions it uses.
+- **Raw memory access.** `Mem` owns one segment that spans the whole address space, so reading or writing an absolute address
+  is a static call the JIT inlines and no segment is created per access.
+- **Scratch memory.** `Scratch` is a per-thread bump allocator in native memory. A call that marshals anything starts by
+  resetting it, then writes descriptors (nested structs, arrays, chained extension structs, strings, struct pointers) at the
+  offsets of the C layout. The offsets are `static final long` constants generated from the same layout computer that a test
+  checks against a C compiler. Strings are encoded to UTF-8 by hand straight into the block. If one call needs more than the
+  block holds, a bigger block replaces it; the old one stays valid until the next call, so addresses already written stay
+  correct. Callbacks that run inside a call (for example an uncaptured error callback) mark the pad as in use, so a nested
+  call does not overwrite the outer one.
+- **Data parameters.** Arrays are copied into the scratch block with the static `MemorySegment.copy` overloads. A direct
+  `ByteBuffer` is passed by address without a copy; a heap `ByteBuffer` is copied through its array. Getting the address of
+  a direct buffer goes through `MemorySegment.ofBuffer`, which creates a small segment object; the JIT removes it after
+  warm-up (the allocation test measures 0 bytes), but this relies on escape analysis.
+- **Returned objects.** `createX(desc)` creates a new wrapper. `createX(desc, into)` only stores the new handle in `into`
+  (and releases the handle `into` held before). Output structs (`getLimits`, `getInfo`, `getCurrentTexture`, ...) are
+  filled in scratch memory and read back into the caller's object; arrays in them are replaced when the capacity is too
+  small, and the matching C `FreeMembers` function is called afterwards.
+- **Callbacks.** There is one upcall stub per callback type, created once. The Java callback is kept in a plain-array table
+  and its slot number travels as `userdata1`. One-shot callbacks free their slot when they fire; the uncaptured error
+  callback keeps its slot. The stub catches everything the Java callback throws and hands it to the thread's uncaught
+  exception handler, because an exception must never travel into native code.
+
+The class files use method handles for the upcall stubs (the foreign function API requires them), but no reflection.
 
 ## Explicit backend install
 

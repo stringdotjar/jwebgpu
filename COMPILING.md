@@ -94,6 +94,19 @@ All unit tests live in the `jwebgpu-test` module:
 ./gradlew :jwebgpu-test:test
 ```
 
+Most tests need nothing but Java. The tests of the desktop backend (the triangle, the allocation check) call the real
+native library, so they need the Dawn library for your machine (see [Native libraries](#native-libraries-dawn)). **When the
+library is missing they are skipped, not failed**, so a plain checkout still passes. They use Dawn's Null backend wherever
+possible, so no graphics card is needed, and they add checks on the real GPU (Intel, AMD, NVIDIA or Apple) when the adapter is
+one. To also run the triangle on a software Vulkan driver (for example Mesa's llvmpipe), point Vulkan at it:
+
+```bash
+VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json ./gradlew :jwebgpu-test:test
+```
+
+To test another build of the library, pass `-Pjwebgpu.library=/path/to/libwebgpu_dawn.so`. The test task adds
+`--enable-native-access=ALL-UNNAMED` itself; you need the same flag when you run your own programs.
+
 ---
 
 ## Using a local checkout from another project

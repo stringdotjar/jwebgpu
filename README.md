@@ -23,9 +23,9 @@ refill every frame.
 jwebgpu is a standalone library with no dependencies on other projects, and it can be used by any Java program.
 
 > [!IMPORTANT]
-> **Status: early development.** jwebgpu is not published to Maven Central or JitPack yet. The modules are
-> scaffolded and the generator and backends are still being written, so there is nothing to render with today.
-> Expect everything to change.
+> **Status: early development.** jwebgpu is not published to Maven Central or JitPack yet. The generator, the API and
+> the desktop (FFM) backend work and draw on real GPUs; the Android (JNI) and web (TeaVM) backends are still being
+> written. Expect everything to change.
 
 ## Modules
 
@@ -75,9 +75,41 @@ GpuInstance instance = JWebGpu.createInstance();
 
 If no backend has been installed, `JWebGpu.createInstance()` throws an `IllegalStateException` with a clear message.
 
-> [!NOTE]
-> The snippet above shows the planned shape of the API. These classes are placeholders until the generator and the
-> backends land.
+### Running on the desktop
+
+The desktop backend calls native code through Java's Foreign Function and Memory API, which Java only allows when it is
+asked for. Start the program with:
+
+```bash
+java --enable-native-access=ALL-UNNAMED -cp ... YourMain
+```
+
+(An executable jar can say `Enable-Native-Access: ALL-UNNAMED` in its manifest instead; the `jwebgpu-ffm` jar does.)
+
+`JWebGpuFfm.install()` loads Dawn for the current operating system and CPU from the `jwebgpu-ffm` jar. It copies the
+library once into a cache directory (`~/.cache/jwebgpu/natives/<hash>/` on Linux), so later runs start without writing
+anything. To use another build of the library, call `JWebGpuFfm.install(Path.of("/path/to/libwebgpu_dawn.so"))` or start
+the program with `-Djwebgpu.library.path=/path/to/libwebgpu_dawn.so`. The libraries are not committed; see
+[COMPILING.md](COMPILING.md#native-libraries-dawn) to build one.
+
+### Garbage-free calls
+
+The desktop backend allocates nothing per call. Object handles are plain `long`s inside the wrappers, and descriptors,
+strings, arrays and callbacks are copied into a native scratch block that every thread reuses. A frame that creates an
+encoder and a render pass, records state and a draw, uploads some floats and submits allocates 0 bytes on the Java heap
+(the unit tests check that). Methods that create objects also have an overload that refills an existing wrapper, such as
+`device.createCommandEncoder(descriptor, encoder)`.
+
+The scratch block of a thread grows when one call needs more than it holds and never shrinks by itself. After a rare, huge
+upload, call `JWebGpuFfm.trimScratch()` on that thread to give the memory back.
+
+### Try it
+
+`samples/triangle-offscreen` draws a triangle into a texture that is never shown and prints the pixels as text:
+
+```bash
+./gradlew :samples:triangle-offscreen:run
+```
 
 ## Building
 
