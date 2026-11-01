@@ -2,7 +2,7 @@ name: Build Natives
 
 # Builds the Dawn shared library for every supported platform and architecture. Nothing is committed:
 # each library is uploaded as a workflow artifact, and a final job bundles them all into one artifact
-# laid out exactly like the repository (FFM resources and Android jniLibs), so release jobs and people
+# laid out exactly like the repository (the resources of each natives module and Android jniLibs), so release jobs and people
 # can drop it straight into a checkout. The Dawn revision comes from scripts/dawn.version.
 on:
   workflow_dispatch:
@@ -84,7 +84,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dawn-${{ matrix.target }}
-          path: jwebgpu-ffm/src/main/resources/natives/${{ matrix.target }}/*
+          path: jwebgpu-natives/${{ matrix.target }}/src/main/resources/natives/${{ matrix.target }}/*
           if-no-files-found: error
           retention-days: 30
 
@@ -169,7 +169,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dawn-${{ matrix.target }}
-          path: jwebgpu-ffm/src/main/resources/natives/${{ matrix.target }}/*
+          path: jwebgpu-natives/${{ matrix.target }}/src/main/resources/natives/${{ matrix.target }}/*
           if-no-files-found: error
           retention-days: 30
 
@@ -252,12 +252,12 @@ jobs:
 
       - name: Lay them out like the repository
         run: |
-          mkdir -p bundle/jwebgpu-ffm/src/main/resources/natives bundle/jwebgpu-jni/src/main/jniLibs
+          mkdir -p bundle/jwebgpu-natives bundle/jwebgpu-jni/src/main/jniLibs
           for dir in artifacts/dawn-*; do
             target="${dir#artifacts/dawn-}"
             case "${target}" in
               android-*) dest="bundle/jwebgpu-jni/src/main/jniLibs/${target#android-}" ;;
-              *) dest="bundle/jwebgpu-ffm/src/main/resources/natives/${target}" ;;
+              *) dest="bundle/jwebgpu-natives/${target}/src/main/resources/natives/${target}" ;;
             esac
             mkdir -p "${dest}"
             cp -r "${dir}/." "${dest}/"

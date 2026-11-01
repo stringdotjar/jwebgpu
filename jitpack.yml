@@ -2,6 +2,8 @@
 jdk:
   - openjdk25
 
-# Publish all library artifacts to the local Maven repo for JitPack to pick up.
+# Publish the library artifacts to the local Maven repo for JitPack to pick up. The jwebgpu-natives-* modules are left
+# out on purpose: their libraries are built by the Build Natives workflow and are not in the repository, and publishing
+# a natives module without its library fails.
 install:
-  - ./gradlew publishToMavenLocal -PincludeAndroid=true --no-daemon
+  - ./gradlew :jwebgpu-api:publishToMavenLocal :jwebgpu-ffm:publishToMavenLocal :jwebgpu-teavm:publishToMavenLocal :jwebgpu-jni:publishToMavenLocal -PincludeAndroid=true --no-daemon

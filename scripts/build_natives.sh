@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Builds Google Dawn as one shared library that exposes the webgpu.h C API, and copies it into the
-# desktop backend's bundled-native resources. Run it from anywhere:
+# natives module of its platform (or the Android JNI backend's jniLibs). Run it from anywhere:
 #
 #   ./scripts/build_natives.sh linux-x86_64
 #
@@ -32,8 +32,8 @@
 #   JWEBGPU_JOBS        Number of parallel compile jobs. Default: the number of CPU cores.
 #   JWEBGPU_X11         ON or OFF. Linux only. Default: ON. Turn it off if libx11-xcb-dev is missing.
 #   JWEBGPU_WAYLAND     ON or OFF. Linux only. Default: ON. It needs no extra packages.
-#   JWEBGPU_OUT_DIR     Where the finished library is copied. Default: the target's folder under
-#                       jwebgpu-ffm/src/main/resources/natives.
+#   JWEBGPU_OUT_DIR     Where the finished library is copied. Default: the resources of the target's
+#                       natives module, jwebgpu-natives/<target>/src/main/resources/natives/<target>.
 #   JWEBGPU_MAX_GLIBC   Linux only. Fails the build if the library needs a newer glibc than this
 #                       (for example 2.28). Default: no limit.
 #   JWEBGPU_ANDROID_API Lowest Android API level the library supports. Default: 26
@@ -397,9 +397,10 @@ build() {
     verify_linux_surfaces "${build_dir}" "${x11}" "${wayland}"
   fi
 
-  # Desktop libraries go into the FFM backend's resources. Android libraries go into the JNI
-  # backend's jniLibs folder, one subfolder per ABI, which is where the Android build expects them.
-  local default_out="${REPO_ROOT}/jwebgpu-ffm/src/main/resources/natives/${TARGET}"
+  # Each desktop library goes into the resources of its own natives module, which becomes the
+  # jwebgpu-natives-<target> jar. Android libraries go into the JNI backend's jniLibs folder, one
+  # subfolder per ABI, which is where the Android build expects them.
+  local default_out="${REPO_ROOT}/jwebgpu-natives/${TARGET}/src/main/resources/natives/${TARGET}"
   if [ "${os}" = "android" ]; then
     default_out="${REPO_ROOT}/jwebgpu-jni/src/main/jniLibs/${arch}"
   fi

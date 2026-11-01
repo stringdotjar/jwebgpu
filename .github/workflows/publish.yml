@@ -60,6 +60,17 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Download the Dawn libraries
+        # The jwebgpu-natives-* modules publish the libraries that the Build Natives workflow built. Publishing fails
+        # if a library is missing, so a release can never ship an empty natives jar. The artifact is laid out like
+        # the repository, so it is copied over the checkout.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id="$(gh run list --workflow natives.yml --branch master --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          gh run download "${run_id}" --name dawn-natives-all --dir natives-bundle
+          cp -r natives-bundle/. .
+
       - name: Publish to Maven Central
         # Secrets are injected as Gradle project properties via the ORG_GRADLE_PROJECT_ prefix.
         # signingInMemoryKey is the ASCII-armored GPG private key (supports newlines safely as an env var).
