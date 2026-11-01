@@ -24,6 +24,8 @@
 package io.github.stringdotjar.jwebgpu.generator;
 
 import io.github.stringdotjar.jwebgpu.generator.model.Spec;
+import io.github.stringdotjar.jwebgpu.generator.model.WebIdl;
+import io.github.stringdotjar.jwebgpu.generator.parse.WebIdlParser;
 import io.github.stringdotjar.jwebgpu.generator.parse.SpecLoader;
 
 import java.nio.file.Files;
@@ -37,6 +39,7 @@ import java.nio.file.Path;
 public final class SpecFiles {
 
   private static Spec cached;
+  private static WebIdl cachedIdl;
 
   private SpecFiles() {}
 
@@ -64,6 +67,18 @@ public final class SpecFiles {
       cached = SpecLoader.load(dir().resolve("webgpu.json"));
     }
     return cached;
+  }
+
+  /**
+   * Parses the vendored {@code webgpu.idl}. The result is cached.
+   *
+   * @return The browser API model.
+   */
+  public static synchronized WebIdl loadIdl() {
+    if (cachedIdl == null) {
+      cachedIdl = WebIdlParser.load(dir().resolve("webgpu.idl"));
+    }
+    return cachedIdl;
   }
 
   /**
