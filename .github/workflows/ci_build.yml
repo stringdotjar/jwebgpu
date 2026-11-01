@@ -1,0 +1,162 @@
+name: CI Build Check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    name: Formatting check (Spotless)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Check formatting
+        run: ./gradlew spotlessCheck --no-daemon --warning-mode all
+        shell: bash
+
+  quality:
+    name: Code quality (Checkstyle)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Check code quality
+        run: ./gradlew checkstyleMain --no-daemon --warning-mode all
+        shell: bash
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run JVM unit tests
+        run: ./gradlew :jwebgpu-test:test --no-daemon --warning-mode all
+        shell: bash
+
+  javadoc:
+    name: Javadoc (doclint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Javadoc all Java modules
+        run: |
+          ./gradlew javadocAll --no-daemon --warning-mode all 2>&1 | tee "$RUNNER_TEMP/javadoc.log"
+          # -Werror in the Javadoc options does not catch all doclint diagnostics (e.g. broken
+          # @link references) in some JDK releases, so we grep the captured output as a second gate.
+          if grep -qE '\.java:[0-9]+: warning:' "$RUNNER_TEMP/javadoc.log"; then
+            echo "" >&2
+            echo "Javadoc produced source-level warnings (treating as errors):" >&2
+            grep -E '\.java:[0-9]+: warning:' "$RUNNER_TEMP/javadoc.log" >&2
+            exit 1
+          fi
+        shell: bash
+
+  build:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+          - os: ubuntu-latest
+            platform: android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: 'gradle'
+
+      - name: Set up Android SDK
+        if: matrix.platform == 'android'
+        id: setup-android
+        uses: android-actions/setup-android@v3
+        with:
+          # Space-separated list (multiline is passed as one arg and breaks sdkmanager).
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+
+      - name: Create local.properties (Android)
+        if: matrix.platform == 'android'
+        run: |
+          SDK_DIR="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "sdk.dir=$SDK_DIR" >> local.properties
+
+      - name: Grant execute permission for gradlew
+        if: matrix.os != 'windows-latest'
+        run: chmod +x gradlew
+
+      - name: Build (Desktop and web)
+        if: matrix.platform == 'linux' || matrix.platform == 'windows' || matrix.platform == 'macos'
+        run: ./gradlew :jwebgpu-api:assemble :jwebgpu-ffm:assemble :jwebgpu-teavm:assemble --no-daemon
+        shell: bash
+
+      - name: Build (Android)
+        if: matrix.platform == 'android'
+        run: ./gradlew -PincludeAndroid=true :jwebgpu-api:assemble :jwebgpu-jni:assembleRelease --no-daemon
+        shell: bash
