@@ -26,18 +26,24 @@ plugins {
 
 // The Android module is optional so the library can be built without an Android SDK.
 // Enable via: -PincludeAndroid=true (CI / one-off) or includeAndroid=true in local.properties (gitignored).
-val includeAndroidFromCli = startParameter.projectProperties["includeAndroid"] == "true"
-val includeAndroidFromLocal = run {
-  val f = File(settingsDir, "local.properties")
-  if (f.exists()) {
-    val props = Properties()
-    f.inputStream().use(props::load)
-    props.getProperty("includeAndroid", "false") == "true"
-  } else {
-    false
+// When this build is included in another one (a composite build), the including build's own -PincludeAndroid=true
+// or local.properties switch counts too, so the consuming project does not have to configure this checkout as well.
+fun readIncludeAndroid(dir: File): Boolean {
+  val f = File(dir, "local.properties")
+  if (!f.exists()) {
+    return false
   }
+  val props = Properties()
+  f.inputStream().use(props::load)
+  return props.getProperty("includeAndroid", "false") == "true"
 }
-val includeAndroid = includeAndroidFromCli || includeAndroidFromLocal
+val includeAndroidFromCli = startParameter.projectProperties["includeAndroid"] == "true"
+val includeAndroidFromLocal = readIncludeAndroid(settingsDir)
+val parentStart = gradle.parent?.startParameter
+val includeAndroidFromParent = parentStart != null &&
+  (parentStart.projectProperties["includeAndroid"] == "true" ||
+    readIncludeAndroid(parentStart.projectDir ?: parentStart.currentDir))
+val includeAndroid = includeAndroidFromCli || includeAndroidFromLocal || includeAndroidFromParent
 gradle.extra["includeAndroid"] = includeAndroid
 
 dependencyResolutionManagement {
