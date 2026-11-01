@@ -217,6 +217,107 @@ backend tests (the triangle on the real GPU, the Null backend and, with `VK_ICD_
 10,000-frame allocation check; the marshalling tests) against the JNI backend. The tests in the `backend` package run
 unchanged against either backend, chosen by the system property `jwebgpu.backend`.
 
+## The web backend
+
+The browser spells WebGPU differently from `webgpu.h`: enums are strings (`"rgba8unorm"`), descriptors are plain JavaScript
+objects, asynchronous calls return promises, and objects have `destroy()` instead of reference counting. So `jwebgpu-teavm`
+is generated from **both** specifications: the C model decides what the shared API looks like, and the vendored WebIDL
+(`spec/webgpu.idl`) says how each piece is spelled in the browser. Everything goes through TeaVM's JavaScript Objects
+(JSO), and nothing is specific to JavaScript or to WasmGC, so one codebase translates to both.
+
+### How the two specifications are merged
+
+`WebMap` (in `jwebgpu-generator`) relates the two models, and its tests fail when a new specification version breaks a rule:
+
+- **Enums.** A C enum maps to the IDL enum named `GPU` plus its name (aliases: `composite_alpha_mode` is `GPUCanvasAlphaMode`,
+  and `texture_binding_view_dimension` uses `GPUTextureViewDimension`). A C value maps to the IDL string that is equal after
+  removing `_` and `-` and ignoring case, so `BGRA8_unorm_srgb` is `"bgra8unorm-srgb"`. The merge fails if a string that the
+  browser exposes has no C value. The C value `undefined` (and `auto` for the canvas alpha mode) means "use the default" and
+  leaves the property out. A C value without a string (`BindingNotUsed`, the `unpremultiplied` and `inherit` alpha modes,
+  the device-lost reasons `CallbackCancelled` and `FailedCreation`) is listed by `WebMap.unsupportedValues()`, and using it
+  throws an `UnsupportedOperationException`. A few C enums have no IDL enum (`feature_level`, the color space, the WGSL
+  language features); their strings are listed in `WebMap`.
+- **Bit flags.** Each C bit flag type maps to the IDL namespace of the same name (`color_write_mask` is `GPUColorWrite`).
+  The numbers are identical in both specifications, and the merge compares every constant.
+- **Structs.** A C struct maps to the dictionary of the same name (the small value types add `Dict`: `GPUColorDict`,
+  `GPUExtent3DDict`, `GPUOrigin3DDict`). Members match by their camel-case name; counts fold into the array next to
+  them; the members of extension structs are flattened into the dictionary they extend, because the browser has no chains.
+  Documented differences: `compute_state` is `GPUProgrammableStage`, the surface configuration is
+  `GPUCanvasConfiguration` (its width and height size the canvas, and the present mode is ignored), and the layout of a
+  buffer-to-texture copy is flattened into `GPUTexelCopyBufferInfo`.
+- **Functions.** A C method maps to the IDL operation of the same name, a getter to the attribute of the same name,
+  and `setLabel` to the `label` attribute. Calls whose shape differs (promises, output structs, raw memory, the instance
+  and the surface) are written by hand in `TeaVmSpecial`. The only C call without a browser operation is
+  `commandEncoder.writeTimestamp`, which throws. The browser operations that the C API cannot reach are
+  `importExternalTexture`, `copyExternalImageToTexture` and `getPreferredCanvasFormat` (used internally for the surface
+  capabilities).
+
+### What is generated and what is written by hand
+
+`--emit teavm` writes: a `Js...` interface for every browser interface (typed `@JSMethod` and `@JSProperty` declarations,
+with one overload per number of optional arguments), a `TeaVmGpu...` class for every API object, a `TeaVmGpu...Struct`
+marshaller for every descriptor, `TeaVmEnums` and `TeaVmProps`. By hand: `JWebGpuTeaVm` (the installer), `TeaVmJs`,
+`TeaVmData`, `TeaVmAsync` and `TeaVmFutures`, `TeaVmReaders` (output structs), `TeaVmSpecial`, `TeaVmStructs` and the two
+bind group marshallers (the browser has a single `resource` member, and only the used layout of a layout entry), and
+`TeaVmSurfaceSourceCanvas`.
+
+### Garbage-free calls
+
+- **Descriptors** are marshalled into **cached JavaScript objects**: each marshaller owns one object per descriptor type
+  and nesting slot, created once, and overwrites every property on each call. Arrays are cached JavaScript arrays whose
+  length is set per call, with one cached marshaller per element index. A property is written by a one-statement JSBody
+  method, so no property name string exists at run time. A string is converted once and reused as long as the Java string
+  object is the same. Enum values are interned strings, found by an array lookup on the ordinal. A call with two
+  descriptors of the same type (a copy's source and destination) gets a separate marshaller for each parameter.
+- **Wrappers.** Methods that return an object also have the refill variant, which only swaps the browser object in an
+  existing wrapper.
+- **No Java test of allocation.** The calls need a JavaScript engine, so the usual allocation test (which counts bytes on
+  the JVM) cannot run them. Instead a unit test checks the generated marshallers: no `new` outside the lazy first use, no
+  lambdas and no string concatenation in the per-call code. The browser test exercises the paths on both targets.
+
+### Uploading data
+
+The browser reads memory through typed arrays. A Java array is one on the JavaScript target (`@JSByRef`), but **not on
+WasmGC**, where Java arrays live in the garbage-collected heap that JavaScript cannot see (TeaVM 0.13.0 rejects
+`@JSByRef` there). The one block of memory that both targets share with JavaScript is a **direct `ByteBuffer`**: a typed
+array on JavaScript, and a range of the linear memory (an `ArrayBuffer`) on WasmGC. So `TeaVmData` works the same on both:
+
+- A direct `ByteBuffer` goes to the browser as it is, as a view over its memory. **Nothing is copied.**
+- A `byte[]`, `short[]`, `int[]`, `float[]` or a heap `ByteBuffer` is copied once with a bulk buffer `put` into a reusable
+  direct staging buffer (it grows only when an upload is bigger than any before), and the browser gets a view of that.
+
+The trade-off: on the JavaScript target an array upload pays one copy that `@JSByRef` would have avoided, and in return
+there is one code path and it works on WasmGC. Every upload also makes one small view object on the JavaScript side
+(never a Java object). Do not keep the view: if WasmGC memory grows, the old `ArrayBuffer` is replaced.
+Reading is symmetric (`readMappedRange` copies the mapped range into the staging buffer and then into the array).
+`getMappedRange` cannot work, because the browser's mapped range is an `ArrayBuffer` that it owns, so it throws and points to
+`readMappedRange` and `writeMappedRange`.
+
+### Lifecycle, promises and the event loop
+
+- `release()` gives up one reference (`addRef()` counts them) and, when the last one goes, calls `destroy()` for buffers,
+  textures, query sets and devices, and just drops the browser object for everything else. It is idempotent. A texture
+  that the canvas hands out every frame is marked external and is never destroyed by `release()`.
+- Promises end in the Java callbacks with matching status codes: `requestAdapter`, `requestDevice`, `mapAsync`,
+  `onSubmittedWorkDone`, `popErrorScope`, `getCompilationInfo` and the asynchronous pipelines. The callback mode is
+  ignored, since a browser callback always comes from the event loop. Each call registers a future, so
+  `waitAny(..., 0)` can poll it.
+- `device.lost` becomes the device lost callback, and the `uncapturederror` event becomes the uncaptured error callback.
+- `processEvents` does nothing, and `waitAny` with a timeout above 0 throws (the browser cannot block).
+
+### Surfaces
+
+A surface is a `GPUCanvasContext`. Chain a `TeaVmSurfaceSourceCanvas` (a canvas element or a CSS selector) onto the
+surface descriptor. `configure` sizes the canvas from the configuration, `getCurrentTexture` returns the canvas texture,
+and `present` does nothing because the browser shows the frame when the task yields.
+
+### What the web does not support
+
+`getMappedRange`/`getConstMappedRange`, a `waitAny` timeout, SPIR-V shader sources, the surface color management extension
+struct, `writeTimestamp`, instance features and limits (the browser has none), `getProcAddress`
+(returns 0), the adapter backend type, compatible surface and binding array size (ignored), and the enum values listed in
+`WebMap.unsupportedValues()`. Using an unsupported extension struct or enum value throws an `UnsupportedOperationException`.
+
 ## Explicit backend install
 
 A backend is never found by reflection. A platform calls its backend's installer once at startup (for example

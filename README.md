@@ -24,8 +24,8 @@ jwebgpu is a standalone library with no dependencies on other projects, and it c
 
 > [!IMPORTANT]
 > **Status: early development.** jwebgpu is not published to Maven Central or JitPack yet. The generator, the API and
-> the desktop (FFM) and Android (JNI) backends work and draw on real GPUs; the web (TeaVM) backend is still being
-> written. Expect everything to change.
+> the desktop (FFM), Android (JNI) and web (TeaVM) backends work and draw; the web backend is checked in headless Chrome on
+> a software adapter. Expect everything to change.
 
 ## Modules
 
@@ -123,6 +123,27 @@ public void surfaceDestroyed(SurfaceHolder holder) {
 The library ships R8 consumer rules, so shrinking an app does not break the native glue. `samples/android-triangle` is a
 small app that runs the backend on a device: see [COMPILING.md](COMPILING.md#building-the-android-backend) to build it.
 
+### Running on the web
+
+The web backend, `jwebgpu-teavm`, has no native code: it wraps the browser's own WebGPU (`navigator.gpu`) with TeaVM's
+JavaScript Objects interop. The same Java translates to **JavaScript and to WebAssembly (WasmGC)** with TeaVM 0.13.0; the
+backend contains nothing that is specific to one of them. The page must be a secure context (HTTPS or `localhost`).
+
+```java
+public static void main(String[] args) {
+  JWebGpuTeaVm.install();   // throws a clear exception if navigator.gpu does not exist
+  GpuInstance instance = JWebGpu.createInstance();
+  instance.requestAdapter(null, GpuCallbackMode.ALLOW_SPONTANEOUS, (status, adapter, message) -> {
+    // the browser cannot block, so continue here
+  });
+}
+```
+
+Asynchronous calls (adapter, device, buffer mapping, pipelines in the background, error scopes) finish in their
+callbacks when the browser resolves the promise, so there is no `processEvents` to call and `waitAny` only polls. To draw
+to a `<canvas>`, chain a `TeaVmSurfaceSourceCanvas` onto the surface descriptor. The few calls that the browser cannot
+offer are listed in [ARCHITECTURE.md](ARCHITECTURE.md#the-web-backend); `samples/web-triangle` is a complete page.
+
 ### Garbage-free calls
 
 The desktop and Android backends allocate nothing per call. Object handles are plain `long`s inside the wrappers, and descriptors,
@@ -141,6 +162,9 @@ upload, call `JWebGpuFfm.trimScratch()` (or `JWebGpuJni.trimScratch()` on Androi
 ```bash
 ./gradlew :samples:triangle-offscreen:run
 ```
+
+`samples/web-triangle` draws the same triangle in a browser, both off screen and on a canvas, and runs about thirty more
+checks of the web backend. Run it in a headless Chrome with `./gradlew :samples:web-triangle:browserTest`.
 
 ## Building
 

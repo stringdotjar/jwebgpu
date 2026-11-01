@@ -16,7 +16,8 @@ you through every step from a clean machine.
 6. [Setting up the Android SDK (for the JNI backend)](#setting-up-the-android-sdk-for-the-jni-backend)
 7. [Native libraries (Dawn)](#native-libraries-dawn)
 8. [Building the Android backend](#building-the-android-backend)
-9. [Troubleshooting](#troubleshooting)
+9. [Building and testing the web backend](#building-and-testing-the-web-backend)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -303,6 +304,35 @@ The task builds `libjwebgpu_jni` for your machine with CMake and the desktop Daw
 [Native libraries](#native-libraries-dawn), or `-Pjwebgpu.library=/path/to/libwebgpu_dawn.so`). It needs CMake and a C
 compiler; **without the Dawn library the glue build is skipped and the JNI tests are skipped, not failed**. The software
 Vulkan run works the same way as for the FFM backend (`VK_ICD_FILENAMES=... ./gradlew :jwebgpu-test:testJni`).
+
+## Building and testing the web backend
+
+`jwebgpu-teavm` compiles like every other module (`./gradlew :jwebgpu-teavm:compileJava`). The generator reads the browser's
+WebIDL (`spec/webgpu.idl`) next to `spec/webgpu.json` and writes the browser interfaces, the descriptor marshallers and the
+object classes. TeaVM is pinned to **0.13.0**.
+
+`samples/web-triangle` is the program that proves it works. Translate it to JavaScript and to WasmGC and collect the pages:
+
+```bash
+./gradlew :samples:web-triangle:webDist      # build/web/{js.html,wasm.html,app.js,app.wasm,...}
+```
+
+and run both in a headless Chrome with a software WebGPU adapter (no graphics card needed):
+
+```bash
+./gradlew :samples:web-triangle:browserTest
+```
+
+The task needs Node.js 18 or newer and a Chrome or Chromium; it finds the browser on the `PATH`, or from the
+`JWEBGPU_CHROME` environment variable. **Without a browser the script prints `SKIPPED` and the task passes**, so CI
+machines without Chrome are fine. The flags that select the software adapter are in `scripts/run_browser_test.mjs`
+(`--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader
+--enable-unsafe-swiftshader --disable-vulkan-surface`); override them with `JWEBGPU_CHROME_FLAGS`. Drawing to a canvas
+needs the Vulkan flags: with only `--use-webgpu-adapter=swiftshader` the offscreen part works but the device is lost as
+soon as a canvas texture is used.
+
+To look at the page yourself, serve `build/web` over `http://localhost` (WebGPU needs a secure context and a WasmGC
+module cannot load from `file://`), for example with `python3 -m http.server --directory samples/web-triangle/build/web`.
 
 ## Troubleshooting
 

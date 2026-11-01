@@ -1,0 +1,145 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu.teavm;
+
+import org.teavm.jso.JSMethod;
+import org.teavm.jso.JSObject;
+import org.teavm.jso.JSProperty;
+import org.teavm.jso.core.JSPromise;
+
+/**
+ * The JavaScript object interface of the browser's {@code GPUBuffer}.
+ *
+ * <p>The methods call the browser directly, so they allocate no Java objects. Most programs use the wrapper classes of
+ * the API instead; this interface is for code that needs a feature the shared API does not have.
+ *
+ * <p>This interface is generated from the WebGPU WebIDL.
+ */
+public interface JsGpuBuffer extends JSObject {
+
+  /**
+   * Reads the {@code size} attribute.
+   *
+   * @return The value of the attribute.
+   */
+  @JSProperty("size")
+  double getSize();
+
+  /**
+   * Reads the {@code usage} attribute.
+   *
+   * @return The value of the attribute.
+   */
+  @JSProperty("usage")
+  int getUsage();
+
+  /**
+   * Reads the {@code mapState} attribute.
+   *
+   * @return The value of the attribute.
+   */
+  @JSProperty("mapState")
+  String getMapState();
+
+  /**
+   * Reads the {@code label} attribute.
+   *
+   * @return The value of the attribute.
+   */
+  @JSProperty("label")
+  String getLabel();
+
+  /**
+   * Writes the {@code label} attribute.
+   *
+   * @param value The new value.
+   */
+  @JSProperty("label")
+  void setLabel(String value);
+
+  /**
+   * Calls {@code mapAsync} of the browser object. The last 2 optional argument(s) are left out.
+   *
+   * @param mode The {@code mode} argument.
+   * @return The result of the call.
+   */
+  @JSMethod("mapAsync")
+  JSPromise<JSObject> mapAsync(int mode);
+
+  /**
+   * Calls {@code mapAsync} of the browser object. The last 1 optional argument(s) are left out.
+   *
+   * @param mode The {@code mode} argument.
+   * @param offset The {@code offset} argument.
+   * @return The result of the call.
+   */
+  @JSMethod("mapAsync")
+  JSPromise<JSObject> mapAsync(int mode, double offset);
+
+  /**
+   * Calls {@code mapAsync} of the browser object.
+   *
+   * @param mode The {@code mode} argument.
+   * @param offset The {@code offset} argument.
+   * @param size The {@code size} argument.
+   * @return The result of the call.
+   */
+  @JSMethod("mapAsync")
+  JSPromise<JSObject> mapAsync(int mode, double offset, double size);
+
+  /**
+   * Calls {@code getMappedRange} of the browser object. The last 2 optional argument(s) are left out.
+   *
+   * @return The result of the call.
+   */
+  @JSMethod("getMappedRange")
+  JSObject getMappedRange();
+
+  /**
+   * Calls {@code getMappedRange} of the browser object. The last 1 optional argument(s) are left out.
+   *
+   * @param offset The {@code offset} argument.
+   * @return The result of the call.
+   */
+  @JSMethod("getMappedRange")
+  JSObject getMappedRange(double offset);
+
+  /**
+   * Calls {@code getMappedRange} of the browser object.
+   *
+   * @param offset The {@code offset} argument.
+   * @param size The {@code size} argument.
+   * @return The result of the call.
+   */
+  @JSMethod("getMappedRange")
+  JSObject getMappedRange(double offset, double size);
+
+  /** Calls {@code unmap} of the browser object. */
+  @JSMethod("unmap")
+  void unmap();
+
+  /** Calls {@code destroy} of the browser object. */
+  @JSMethod("destroy")
+  void destroy();
+}

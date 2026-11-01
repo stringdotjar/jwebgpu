@@ -1,0 +1,252 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu.teavm;
+
+import org.teavm.jso.JSObject;
+
+import io.github.stringdotjar.jwebgpu.GpuBuffer;
+import io.github.stringdotjar.jwebgpu.GpuCallbackMode;
+import io.github.stringdotjar.jwebgpu.GpuCommandBuffer;
+import io.github.stringdotjar.jwebgpu.GpuExtent3D;
+import io.github.stringdotjar.jwebgpu.GpuQueue;
+import io.github.stringdotjar.jwebgpu.GpuQueueWorkDoneCallback;
+import io.github.stringdotjar.jwebgpu.GpuTexelCopyBufferLayout;
+import io.github.stringdotjar.jwebgpu.GpuTexelCopyTextureInfo;
+
+import java.nio.ByteBuffer;
+
+/**
+ * The web implementation of {@link GpuQueue}, wrapping the browser's {@code GPUQueue}.
+ *
+ * <p>The wrapper stores the JavaScript object. Calls convert their arguments into cached JavaScript objects, so they
+ * allocate nothing on the Java side. Methods that create objects also come in a refilling variant that reuses an
+ * existing wrapper.
+ *
+ * <p>{@link #release()} gives up one reference. The browser frees the rest when the JavaScript object is garbage
+ * collected.
+ *
+ * <p>This class is generated from the specification.
+ */
+public final class TeaVmGpuQueue extends GpuQueue {
+
+  private int refs;
+  private JsGpuQueue js;
+
+  /**
+   * Creates an empty wrapper that holds no browser object.
+   *
+   * <p>It reports {@link #isReleased()} until a refilling method stores an object in it.
+   */
+  public TeaVmGpuQueue() {}
+
+  /**
+   * Wraps a browser object. The wrapper owns one reference, so release it when done.
+   *
+   * @param js The browser object. It must not be null.
+   */
+  public TeaVmGpuQueue(JsGpuQueue js) {
+    this.js = js;
+    this.refs = 1;
+  }
+
+  @Override
+  public long onSubmittedWorkDone(GpuCallbackMode mode, GpuQueueWorkDoneCallback callback) {
+    return TeaVmSpecial.queueOnSubmittedWorkDone(this, mode, callback);
+  }
+
+  @Override
+  public void setLabel(String label) {
+    live().setLabel(label);
+  }
+
+  @Override
+  public void submit(GpuCommandBuffer[] commands, int commandCount) {
+    JsGpuQueue self = live();
+    JSObject commandsJs = TeaVmJs.list();
+    for (int i = 0; i < commandCount; i++) {
+      TeaVmJs.push(commandsJs, TeaVmGpuCommandBuffer.js(commands[i]));
+    }
+    self.submit(commandsJs);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, ByteBuffer data) {
+    JSObject staged = TeaVmData.stage(data);
+    TeaVmSpecial.queueWriteBuffer(this, buffer, bufferOffset, staged);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, byte[] data, int dataOffset, int dataCount) {
+    JSObject staged = TeaVmData.stage(data, dataOffset, dataCount);
+    TeaVmSpecial.queueWriteBuffer(this, buffer, bufferOffset, staged);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, short[] data, int dataOffset, int dataCount) {
+    JSObject staged = TeaVmData.stage(data, dataOffset, dataCount);
+    TeaVmSpecial.queueWriteBuffer(this, buffer, bufferOffset, staged);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, int[] data, int dataOffset, int dataCount) {
+    JSObject staged = TeaVmData.stage(data, dataOffset, dataCount);
+    TeaVmSpecial.queueWriteBuffer(this, buffer, bufferOffset, staged);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, float[] data, int dataOffset, int dataCount) {
+    JSObject staged = TeaVmData.stage(data, dataOffset, dataCount);
+    TeaVmSpecial.queueWriteBuffer(this, buffer, bufferOffset, staged);
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, ByteBuffer data, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    JSObject staged = TeaVmData.stage(data);
+    TeaVmSpecial.queueWriteTexture(this, destination, staged, dataLayout, writeSize);
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, byte[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    JSObject staged = TeaVmData.stage(data, dataOffset, dataCount);
+    TeaVmSpecial.queueWriteTexture(this, destination, staged, dataLayout, writeSize);
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, short[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    JSObject staged = TeaVmData.stage(data, dataOffset, dataCount);
+    TeaVmSpecial.queueWriteTexture(this, destination, staged, dataLayout, writeSize);
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, int[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    JSObject staged = TeaVmData.stage(data, dataOffset, dataCount);
+    TeaVmSpecial.queueWriteTexture(this, destination, staged, dataLayout, writeSize);
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, float[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    JSObject staged = TeaVmData.stage(data, dataOffset, dataCount);
+    TeaVmSpecial.queueWriteTexture(this, destination, staged, dataLayout, writeSize);
+  }
+
+  @Override
+  public void release() {
+    JsGpuQueue j = js;
+    if (j != null) {
+      refs--;
+      if (refs <= 0) {
+        js = null;
+        refs = 0;
+      }
+    }
+  }
+
+  @Override
+  public void addRef() {
+    live();
+    refs++;
+  }
+
+  @Override
+  public boolean isReleased() {
+    return js == null;
+  }
+
+  /**
+   * Returns the browser object of a wrapper that was created by this backend.
+   *
+   * @param o The object. It must not be null or released.
+   * @return The browser object.
+   * @throws IllegalArgumentException If the object belongs to another backend.
+   * @throws IllegalStateException If the object was released.
+   */
+  static JsGpuQueue js(GpuQueue o) {
+    if (o instanceof TeaVmGpuQueue f) {
+      JsGpuQueue j = f.js;
+      if (j == null) {
+        throw new IllegalStateException("The GpuQueue was released");
+      }
+      return j;
+    }
+    if (o == null) {
+      throw new NullPointerException("queue");
+    }
+    throw new IllegalArgumentException("The GpuQueue was not created by the web backend");
+  }
+
+  /**
+   * Returns the browser object of a wrapper, or null for null.
+   *
+   * @param o The object, or null.
+   * @return The browser object, or null.
+   */
+  static JsGpuQueue jsOrNull(GpuQueue o) {
+    return o == null ? null : js(o);
+  }
+
+  /**
+   * Checks that an object was created by this backend.
+   *
+   * @param o The object. It must not be null.
+   * @return The same object, as the backend type.
+   * @throws IllegalArgumentException If the object belongs to another backend.
+   */
+  static TeaVmGpuQueue cast(GpuQueue o) {
+    if (o instanceof TeaVmGpuQueue f) {
+      return f;
+    }
+    if (o == null) {
+      throw new NullPointerException("into");
+    }
+    throw new IllegalArgumentException("The GpuQueue was not created by the web backend");
+  }
+
+  /**
+   * Stores a new browser object in this wrapper and gives up the one it held before.
+   *
+   * @param j The new browser object.
+   */
+  void assign(JsGpuQueue j) {
+    release();
+    js = j;
+    refs = 1;
+  }
+
+  private JsGpuQueue live() {
+    JsGpuQueue j = js;
+    if (j == null) {
+      throw new IllegalStateException("The GpuQueue was released");
+    }
+    return j;
+  }
+
+  /**
+   * Returns the browser object.
+   *
+   * @return The object, or null if the wrapper is empty or released.
+   */
+  public JsGpuQueue getJs() {
+    return js;
+  }
+}
