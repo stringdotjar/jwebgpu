@@ -1,0 +1,12 @@
+/*
+ * Linker version script for the Dawn shared library on Linux.
+ *
+ * Only the C functions declared in webgpu.h (all named wgpu...) are visible to the outside. Every C++ internal
+ * symbol stays private, so it cannot clash with other libraries loaded into the same process, such as the JVM.
+ */
+{
+  global:
+    wgpu*;
+  local:
+    *;
+};

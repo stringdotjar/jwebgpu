@@ -1,0 +1,12 @@
+# Pins the Google Dawn revision that every native library is built from.
+#
+# Dawn publishes no release tags, only chromium/NNNN branches, so a commit on the main branch is pinned instead.
+# This file is the single source of truth: scripts/build_natives.sh reads it, and the natives workflow uses its hash
+# as the cache key. When you bump DAWN_COMMIT, also bump WEBGPU_HEADERS_COMMIT to the value pinned in Dawn's DEPS file
+# at that commit, and re-vendor the specification in spec/ so the generated bindings match the binary.
+#
+# This file is sourced by bash, so keep it to plain KEY=VALUE lines.
+
+DAWN_REPO_URL=https://dawn.googlesource.com/dawn
+DAWN_COMMIT=20734e3deac87a3f5c389ebdb808227be6832b44
+WEBGPU_HEADERS_COMMIT=a1dc77409bb2b8bd80540cbf4b8db219e123e909
