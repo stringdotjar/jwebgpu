@@ -1,8 +1,9 @@
 name: Build Natives
 
-# Builds the Dawn shared library for every desktop platform. Nothing is committed: each library is
-# uploaded as a workflow artifact, so release jobs (and people) can download exactly what CI built.
-# The Dawn revision comes from scripts/dawn.version.
+# Builds the Dawn shared library for every supported platform and architecture. Nothing is committed:
+# each library is uploaded as a workflow artifact, and a final job bundles them all into one artifact
+# laid out exactly like the repository (FFM resources and Android jniLibs), so release jobs and people
+# can drop it straight into a checkout. The Dawn revision comes from scripts/dawn.version.
 on:
   workflow_dispatch:
   push:
@@ -18,7 +19,76 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  dawn:
+  linux:
+    name: Dawn (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    # Building inside manylinux_2_28 (AlmaLinux 8, glibc 2.28) keeps the library loadable on every
+    # mainstream distribution released since 2018, not only on the runner's much newer glibc.
+    container: quay.io/pypa/manylinux_2_28_${{ matrix.arch }}
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            os: ubuntu-24.04
+            arch: x86_64
+          - target: linux-aarch64
+            os: ubuntu-24.04-arm
+            arch: aarch64
+    env:
+      JWEBGPU_DAWN_CACHE: /github/home/.cache/jwebgpu/dawn
+      # One library serves both window systems: Dawn picks X11 (Xlib or XCB) or Wayland at run time.
+      JWEBGPU_X11: 'ON'
+      JWEBGPU_WAYLAND: 'ON'
+      JWEBGPU_MAX_GLIBC: '2.28'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install build dependencies
+        # The X11 headers are needed to compile Dawn's X11 surface support. Dawn ships the Wayland
+        # headers it needs. CMake and Ninja come from the image's Python 3.12.
+        run: |
+          dnf install -y git libX11-devel libxcb-devel
+          /opt/python/cp312-cp312/bin/python -m pip install cmake ninja
+          echo "/opt/python/cp312-cp312/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore the Dawn sources cache
+        id: sources
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.JWEBGPU_DAWN_CACHE }}/src
+          key: dawn-src-Linux-${{ hashFiles('scripts/dawn.version') }}
+
+      - name: Fetch the Dawn sources
+        run: |
+          git config --global --add safe.directory '*'
+          ./scripts/build_natives.sh fetch
+
+      - name: Save the Dawn sources cache
+        if: steps.sources.outputs.cache-hit != 'true'
+        # Saved before the build starts, so a build failure does not throw away the long download.
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.JWEBGPU_DAWN_CACHE }}/src
+          key: ${{ steps.sources.outputs.cache-primary-key }}
+
+      - name: Build Dawn
+        run: ./scripts/build_natives.sh ${{ matrix.target }}
+
+      - name: Upload the library
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawn-${{ matrix.target }}
+          path: jwebgpu-ffm/src/main/resources/natives/${{ matrix.target }}/*
+          if-no-files-found: error
+          retention-days: 30
+
+  desktop:
     name: Dawn (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     # A cold Dawn build takes about 25 minutes on 8 cores and much longer on 2 to 4 cores.
@@ -27,12 +97,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: linux-x86_64
-            os: ubuntu-24.04
-            cache_dir: ~/.cache/jwebgpu/dawn
-          - target: linux-aarch64
-            os: ubuntu-24.04-arm
-            cache_dir: ~/.cache/jwebgpu/dawn
           - target: windows-x86_64
             os: windows-latest
             msvc_arch: x64
@@ -64,13 +128,6 @@ jobs:
 
       - name: Install Ninja
         run: python -m pip install ninja
-
-      - name: Install Linux build dependencies
-        if: runner.os == 'Linux'
-        # Dawn loads X11 and Wayland at run time, but it needs the X11 headers to compile its surface support.
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libx11-dev libx11-xcb-dev libxcb1-dev
 
       - name: Set up the MSVC toolchain
         if: runner.os == 'Windows'
@@ -113,5 +170,102 @@ jobs:
         with:
           name: dawn-${{ matrix.target }}
           path: jwebgpu-ffm/src/main/resources/natives/${{ matrix.target }}/*
+          if-no-files-found: error
+          retention-days: 30
+
+  android:
+    name: Dawn (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: android-arm64-v8a
+            abi: arm64-v8a
+          - target: android-x86_64
+            abi: x86_64
+    env:
+      JWEBGPU_ANDROID_API: '26'
+      NDK_VERSION: '28.2.13676358'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ninja
+        run: python -m pip install ninja
+
+      - name: Install the Android NDK
+        # The runner image ships the Android SDK. Pin the NDK so every build uses the same compiler.
+        run: |
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --install "ndk;${NDK_VERSION}" > /dev/null
+          echo "JWEBGPU_ANDROID_NDK=${ANDROID_HOME}/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Restore the Dawn sources cache
+        id: sources
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/jwebgpu/dawn/src
+          key: dawn-src-Android-${{ hashFiles('scripts/dawn.version') }}
+
+      - name: Fetch the Dawn sources
+        run: ./scripts/build_natives.sh fetch
+
+      - name: Save the Dawn sources cache
+        if: steps.sources.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/jwebgpu/dawn/src
+          key: ${{ steps.sources.outputs.cache-primary-key }}
+
+      - name: Build Dawn
+        run: ./scripts/build_natives.sh ${{ matrix.target }}
+
+      - name: Upload the library
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawn-${{ matrix.target }}
+          path: jwebgpu-jni/src/main/jniLibs/${{ matrix.abi }}/*
+          if-no-files-found: error
+          retention-days: 30
+
+  bundle:
+    name: Bundle all natives
+    needs: [linux, desktop, android]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download every library
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dawn-*
+          path: artifacts
+
+      - name: Lay them out like the repository
+        run: |
+          mkdir -p bundle/jwebgpu-ffm/src/main/resources/natives bundle/jwebgpu-jni/src/main/jniLibs
+          for dir in artifacts/dawn-*; do
+            target="${dir#artifacts/dawn-}"
+            case "${target}" in
+              android-*) dest="bundle/jwebgpu-jni/src/main/jniLibs/${target#android-}" ;;
+              *) dest="bundle/jwebgpu-ffm/src/main/resources/natives/${target}" ;;
+            esac
+            mkdir -p "${dest}"
+            cp -r "${dir}/." "${dest}/"
+          done
+          find bundle -type f -exec ls -l {} \;
+
+      - name: Upload the bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawn-natives-all
+          path: bundle/
           if-no-files-found: error
           retention-days: 30

@@ -171,9 +171,9 @@ The typical location is `C:\Users\<You>\AppData\Local\Android\Sdk` on Windows, `
 
 ## Native libraries (Dawn)
 
-The desktop backend calls [Dawn](https://dawn.googlesource.com/dawn), Google's WebGPU implementation, through its `webgpu.h`
-C API. Dawn is built from source into **one shared library per platform**, and the result is bundled into the
-`jwebgpu-ffm` jar. The libraries are **not committed**: CI builds them (see `.github/workflows/natives.yml`), and you can
+The desktop and Android backends call [Dawn](https://dawn.googlesource.com/dawn), Google's WebGPU implementation, through
+its `webgpu.h` C API. Dawn is built from source into **one shared library per platform and architecture**. Desktop libraries
+are bundled into the `jwebgpu-ffm` jar, and Android libraries into the `jwebgpu-jni` AAR. The libraries are **not committed**: CI builds them (see `.github/workflows/natives.yml`), and you can
 build the one for your own machine with `scripts/build_natives.sh`. You only need to do this when you run code that actually
 calls the GPU; compiling and the unit tests that do not touch the native library work without it.
 
@@ -190,15 +190,27 @@ Pick the target that matches your machine:
 | `linux-x86_64`, `linux-aarch64` | Linux with the same CPU | Vulkan (X11 and Wayland surfaces), Null |
 | `windows-x86_64`, `windows-aarch64` | Windows with the same CPU | Direct3D 12, Direct3D 11, Vulkan, Null |
 | `macos-x86_64`, `macos-aarch64` | macOS (either CPU can build both) | Metal, Null |
+| `android-arm64-v8a`, `android-x86_64` | Linux or macOS with the Android NDK r28+ | Vulkan (`ANativeWindow` surfaces), Null |
+
+Every library CI builds covers all of that platform's window systems at once: Linux has X11 (Xlib and XCB) and Wayland
+compiled in and picks one at run time, Windows uses Win32 windows, macOS uses Metal layers, and Android uses `ANativeWindow`.
+Only the 64-bit Android ABIs are built, because the generated struct layouts assume 64-bit pointers, Dawn requires Vulkan
+1.1 (which almost no 32-bit-only phones have), and Google Play has required 64-bit code since 2019.
 
 The **Null backend** is a fake GPU that does nothing. Unit tests use it so they can run on machines without a graphics card.
 The script also accepts `fetch`, which only downloads the Dawn sources.
 
-The finished library is copied to `jwebgpu-ffm/src/main/resources/natives/<target>/` as `libwebgpu_dawn.so`,
-`webgpu_dawn.dll` or `libwebgpu_dawn.dylib`. That folder is gitignored. The library is stripped, and it exports **only** the
+Desktop libraries are copied to `jwebgpu-ffm/src/main/resources/natives/<target>/` as `libwebgpu_dawn.so`,
+`webgpu_dawn.dll` or `libwebgpu_dawn.dylib`. Android libraries are copied to `jwebgpu-jni/src/main/jniLibs/<abi>/` as
+`libwebgpu_dawn.so`, with the C++ runtime linked statically so apps need no `libc++_shared.so`. Both folders are gitignored. The library is stripped, and it exports **only** the
 `wgpu*` functions from `webgpu.h`; the script checks this at the end and fails if anything else leaks out. On Linux it also
-links the C++ runtime statically, so the library needs nothing but glibc (version 2.38 or newer when built on Ubuntu 24.04,
-because the build host's glibc sets the floor; the script prints the exact requirement at the end).
+links the C++ runtime statically, so the library needs nothing but glibc. The build machine's glibc sets the floor, so CI
+builds the Linux libraries inside the `manylinux_2_28` container (glibc 2.28), which makes them load on every mainstream
+distribution released since 2018. A local build on a newer distribution needs that distribution's glibc or newer; the script
+prints the exact requirement at the end.
+
+To get every library at once without building, download the `dawn-natives-all` artifact from the latest **Build Natives**
+workflow run. It is laid out like the repository, so you can extract it straight into your checkout.
 
 ### What to install first
 
@@ -210,6 +222,7 @@ because the build host's glibc sets the floor; the script prints the exact requi
 | **Linux (Arch)** | `sudo pacman -S base-devel cmake libx11 libxcb` |
 | **Windows** | Visual Studio 2022 (or Build Tools) with the **Desktop development with C++** workload, and Git for Windows. Run the script from Git Bash **inside a developer shell**, so `cl.exe` is on `PATH` (for example, open "x64 Native Tools Command Prompt for VS 2022", then start `bash` from there). |
 | **macOS** | Xcode command line tools (`xcode-select --install`), then `brew install cmake ninja`. |
+| **Android** | The Android NDK r28 or newer (Android Studio's SDK Manager, **NDK (Side by side)**), on Linux or macOS. Point the script at it with `JWEBGPU_ANDROID_NDK` if it is not at `~/Android/Sdk/ndk/28.2.13676358`. |
 
 Dawn loads X11, Wayland and the Vulkan loader at run time, so only the **X11 headers** are needed to compile on Linux. If you
 cannot install `libx11-xcb-dev`, build without X11 window support for local experiments:
@@ -227,7 +240,10 @@ Never ship a library built that way. CI always builds with X11 and Wayland on.
 | `JWEBGPU_DAWN_CACHE` | `~/.cache/jwebgpu/dawn` | Where the Dawn sources (`src/`) and build trees (`build/<target>/`) live. Delete it to start clean. |
 | `JWEBGPU_JOBS` | number of CPU cores | Parallel compile jobs. Lower it if the build runs out of memory. |
 | `JWEBGPU_X11`, `JWEBGPU_WAYLAND` | `ON` | Linux surface support. |
-| `JWEBGPU_OUT_DIR` | the target's folder under `natives/` | Where the finished library is copied. |
+| `JWEBGPU_OUT_DIR` | the target's folder under `natives/` or `jniLibs/` | Where the finished library is copied. |
+| `JWEBGPU_MAX_GLIBC` | no limit | Linux only. Fails the build if the library needs a newer glibc (CI uses `2.28`). |
+| `JWEBGPU_ANDROID_API` | `26` | Lowest Android API level the Android library supports. |
+| `JWEBGPU_ANDROID_NDK` | see above | Path to the Android NDK. |
 
 The Dawn revision is pinned in `scripts/dawn.version`. Dawn publishes no release tags, so a commit is pinned instead, and the
 vendored specification in `spec/` must come from the same revision (Dawn's `DEPS` file names the `webgpu-headers` commit).
