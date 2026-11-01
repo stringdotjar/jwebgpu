@@ -25,6 +25,7 @@ package io.github.stringdotjar.jwebgpu.samples;
 
 import io.github.stringdotjar.jwebgpu.GpuAdapter;
 import io.github.stringdotjar.jwebgpu.GpuAdapterInfo;
+import io.github.stringdotjar.jwebgpu.GpuBackendType;
 import io.github.stringdotjar.jwebgpu.GpuBuffer;
 import io.github.stringdotjar.jwebgpu.GpuBufferDescriptor;
 import io.github.stringdotjar.jwebgpu.GpuBufferUsage;
@@ -47,6 +48,7 @@ import io.github.stringdotjar.jwebgpu.GpuRenderPassDescriptor;
 import io.github.stringdotjar.jwebgpu.GpuRenderPassEncoder;
 import io.github.stringdotjar.jwebgpu.GpuRenderPipeline;
 import io.github.stringdotjar.jwebgpu.GpuRenderPipelineDescriptor;
+import io.github.stringdotjar.jwebgpu.GpuRequestAdapterOptions;
 import io.github.stringdotjar.jwebgpu.GpuShaderModule;
 import io.github.stringdotjar.jwebgpu.GpuShaderModuleDescriptor;
 import io.github.stringdotjar.jwebgpu.GpuShaderSourceWGSL;
@@ -74,7 +76,9 @@ import java.util.function.BooleanSupplier;
  * adapter and a device, build a pipeline from a WGSL shader, record and submit a render pass, and read the pixels
  * back through a mapped buffer.
  *
- * <p>Run it with {@code ./gradlew :samples:triangle-offscreen:run}.
+ * <p>Run it with {@code ./gradlew :samples:triangle-offscreen:run}, or build it as a GraalVM native image with
+ * {@code ./gradlew :samples:triangle-offscreen:nativeCompile}. Pass {@code null} as the only argument to use Dawn's Null
+ * backend, which accepts every call but draws nothing, so it needs no graphics card.
  */
 public final class TriangleOffscreen {
 
@@ -94,14 +98,19 @@ public final class TriangleOffscreen {
   /**
    * Runs the sample.
    *
-   * @param args Not used.
+   * @param args Optionally {@code null}, to use Dawn's Null backend instead of the first real adapter.
    */
   public static void main(String[] args) {
     JWebGpuFfm.install();
     GpuInstance instance = JWebGpu.createInstance();
 
     GpuAdapter[] adapter = new GpuAdapter[1];
-    instance.requestAdapter(null, GpuCallbackMode.ALLOW_PROCESS_EVENTS, (status, result, message) -> {
+    GpuRequestAdapterOptions options = null;
+    if (args.length > 0 && args[0].equals("null")) {
+      options = new GpuRequestAdapterOptions();
+      options.backendType = GpuBackendType.NULL;
+    }
+    instance.requestAdapter(options, GpuCallbackMode.ALLOW_PROCESS_EVENTS, (status, result, message) -> {
       adapter[0] = result;
       if (result == null) {
         System.err.println("No adapter (" + status + "): " + message);
