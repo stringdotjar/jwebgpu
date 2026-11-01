@@ -17,7 +17,7 @@
        import, which would change the file's semantics. -->
   <suppress id="QualifiedJavadocLink" files="package-info\.java"/>
 
-  <!-- The generator is a build-time tool that never ships in a game, so standard collections are allowed there. -->
+  <!-- The generator is a build-time tool that never ships at runtime, so standard collections are allowed there. -->
   <suppress checks="IllegalType" files="[\\/]jwebgpu-generator[\\/]"/>
   <suppress id="StandardCollections" files="[\\/]jwebgpu-generator[\\/]"/>
 </suppressions>

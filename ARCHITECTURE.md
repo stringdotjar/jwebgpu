@@ -6,7 +6,7 @@ build-time generator that writes most of the code.
 ## Core idea: one neutral API, three thin backends
 
 ```
-                    your program (or a game framework)
+                    your program (or a library built on it)
                                   |
                            jwebgpu-api            <- platform-neutral; safe on desktop, Android, web
             ______________________|______________________

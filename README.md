@@ -20,8 +20,7 @@ The bindings are **generated** from vendored, pinned WebGPU specifications, so t
 stay in step. They are also designed to be garbage-free: descriptors are mutable objects that you create once and
 refill every frame.
 
-jwebgpu is used by the [FlixelGDX](https://github.com/flixelgdx/flixelgdx) game framework, but it never depends on
-it and can be used by any Java program.
+jwebgpu is a standalone library with no dependencies on other projects, and it can be used by any Java program.
 
 > [!IMPORTANT]
 > **Status: early development.** jwebgpu is not published to Maven Central or JitPack yet. The modules are

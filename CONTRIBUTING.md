@@ -58,7 +58,7 @@ To maintain a stable code base, we follow a specific branching model:
 
 1. **Target Branch**: All pull requests must be made against the `master` branch.
 2. **Build Checks**: Your PR **MUST** pass all automated build checks. If the build fails, **the PR will not beconsidered for merging until the issues are resolved.**
-3. **Commit Messages**: Keep commit messages concise and descriptive. Use the imperative mood (e.g. "Add tween callback" not "Added tween callback"). If the change fixes an issue, reference it in the message (e.g. "Fix NPE when sprite has no graphic (#123)").
+3. **Commit Messages**: Keep commit messages concise and descriptive. Use the imperative mood (e.g. "Add buffer label support" not "Added buffer label support"). If the change fixes an issue, reference it in the message (e.g. "Fix NPE when a texture view has no label (#123)").
 4. **Scope**: Prefer one logical change per PR. Large features can be split into smaller, reviewable PRs (e.g. API first, then implementation).
 5. **Discussion**: For large or breaking changes, consider opening an issue first to discuss the approach. For bugs, feel free to open a PR directly if the fix is clear.
 
@@ -150,7 +150,7 @@ for (int i = 0; i < desc.colorCount; i++) { ... }
 
 - **Avoid allocations in hot paths**: Do not create new objects in code that runs every frame unless necessary. Allocations in hot paths cause GC pressure and can cause hitches.
 - **Reuse descriptors and wrappers**: Descriptors are plain mutable objects that you create once and refill. Objects that WebGPU creates every frame (command encoders, pass encoders, surface textures) have overloads that refill an existing wrapper instead of allocating a new one.
-- **No standard Java collections**: Standard Java collection types like `HashMap` and `List` are ***completely banned*** in the runtime modules (`jwebgpu-api`, `jwebgpu-ffm`, `jwebgpu-jni`, `jwebgpu-teavm`). Use plain arrays. The only exception is the build-time generator (`jwebgpu-generator`), since it never ships in a game.
+- **No standard Java collections**: Standard Java collection types like `HashMap` and `List` are ***completely banned*** in the runtime modules (`jwebgpu-api`, `jwebgpu-ffm`, `jwebgpu-jni`, `jwebgpu-teavm`). Use plain arrays. The only exception is the build-time generator (`jwebgpu-generator`), since it never ships with an application.
 - **Absolutely no reflection**: Reflection (including `ServiceLoader` and `Class.forName`) is ***not allowed to be used***. It completely breaks AOT compilers and isn't reliable. Backends are installed explicitly instead.
 
 ### Examples

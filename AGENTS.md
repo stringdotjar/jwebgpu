@@ -11,8 +11,8 @@ backends: FFM for desktop, JNI for Android and TeaVM for the web.
 The bindings are **generated** from vendored, pinned specifications (`spec/`) by a build-time generator
 (`jwebgpu-generator`), so the three backends cannot drift apart. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
-jwebgpu is used by the FlixelGDX game framework, but it **never depends on FlixelGDX** and must stay usable by any
-Java program. FlixelGDX consumes it through a Gradle composite build until jwebgpu is published.
+jwebgpu is a standalone library. It **never depends on or refers to any other project** and must stay usable by any
+Java program. Until jwebgpu is published, other projects use it through a Gradle composite build.
 
 The project is in early development and is not published yet.
 
@@ -64,7 +64,7 @@ When explaining code or introducing patterns:
 - **Standard Java collections are completely banned at runtime**. They take up too much memory and allocate too many objects
   when they're used. jwebgpu has no collections package of its own, so use plain arrays (with a separate `count` field where
   a size varies). The only exception to this rule is build-time tools, which means `jwebgpu-generator`, since it does not impact
-  a game's performance at runtime and never ships. The Checkstyle suppressions for the generator live in
+  an application's performance at runtime and never ships. The Checkstyle suppressions for the generator live in
   `gradle/checkstyle/suppressions.xml`.
 - **Reflection is banned**. It breaks many platforms that require ahead-of-time compilation and is unstable for situations 
   like version bumps. If reflection must be used, don't touch the main area requiring it, and bring it up at the end of 
@@ -304,5 +304,5 @@ templates are already in place for that day).
 - Do not push unless the user asks you to.
 - If the user has changes present in the working tree, **do not undo, modify or touch them**. Leave them as-is.
 - Once pull requests are adopted, they should target the **`master`** branch, follow the
-  [PR template](.github/PULL_REQUEST_TEMPLATE.md) exactly, and have past-tense titles written like a game update
+  [PR template](.github/PULL_REQUEST_TEMPLATE.md) exactly, and have past-tense titles written like a release note
   (for example "Added the desktop FFM backend with garbage-free descriptor marshalling").

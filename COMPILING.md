@@ -98,7 +98,7 @@ All unit tests live in the `jwebgpu-test` module:
 
 ## Using a local checkout from another project
 
-jwebgpu is not published yet, so other projects (such as FlixelGDX) use it through a **Gradle composite build**. In the
+jwebgpu is not published yet, so other projects use it through a **Gradle composite build**. In the
 consuming project's `settings.gradle.kts`:
 
 ```kotlin
