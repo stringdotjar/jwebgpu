@@ -11,7 +11,7 @@
  * this package as the plug socket and a backend as the plug: the socket looks the same everywhere,
  * and what sits behind it changes per platform.
  *
- * <p>Descriptors are plain mutable objects meant to be created once and refilled, so a game can
+ * <p>Descriptors are plain mutable objects meant to be created once and refilled, so an application can
  * render frame after frame without allocating garbage.
  *
  * <h2>Naming</h2>

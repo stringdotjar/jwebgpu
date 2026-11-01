@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 /**
  * Proves that refilling descriptors allocates nothing.
  *
- * <p>The whole point of reusable descriptors is that a game can fill them every frame without creating garbage. The
+ * <p>The whole point of reusable descriptors is that per-frame code can fill them every frame without creating garbage. The
  * test refills a render pass descriptor 100,000 times and asks the JVM how many bytes this thread allocated.
  */
 class AllocationTest {

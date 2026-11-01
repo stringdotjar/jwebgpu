@@ -73,8 +73,8 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Proves that a frame of typical rendering calls allocates nothing on the Java heap.
  *
  * <p>A frame creates a command encoder and a render pass, records state and a draw, finishes the command buffer,
- * uploads some floats and submits. Every object is created once up front and refilled each frame, which is how a
- * game is meant to use the API. The test runs 10,000 frames after a warm-up and asks the JVM how many bytes this
+ * uploads some floats and submits. Every object is created once up front and refilled each frame, which is how per-frame code is
+ * meant to use the API. The test runs 10,000 frames after a warm-up and asks the JVM how many bytes this
  * thread allocated, then compares it with a control measurement of an empty loop. It uses Dawn's Null backend, so
  * it runs on machines without a GPU.
  */
