@@ -215,6 +215,20 @@ jobs:
         run: ./gradlew :jwebgpu-api:assemble :jwebgpu-ffm:assemble :jwebgpu-teavm:assemble --no-daemon
         shell: bash
 
+      - name: Download the Android Dawn libraries
+        # The JNI glue links against the Dawn library of each ABI, which is never committed. Use the ones the latest
+        # successful Build Natives run produced.
+        if: matrix.platform == 'android'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id="$(gh run list --workflow natives.yml --branch master --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          for abi in arm64-v8a x86_64; do
+            gh run download "${run_id}" --name "dawn-android-${abi}" --dir "jwebgpu-jni/src/main/jniLibs/${abi}"
+          done
+          ls -l jwebgpu-jni/src/main/jniLibs/*
+        shell: bash
+
       - name: Build (Android)
         if: matrix.platform == 'android'
         run: ./gradlew -PincludeAndroid=true :jwebgpu-api:assemble :jwebgpu-jni:assembleRelease --no-daemon
