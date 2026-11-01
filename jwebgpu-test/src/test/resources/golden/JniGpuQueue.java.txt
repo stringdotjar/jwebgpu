@@ -1,0 +1,288 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu.jni;
+
+import io.github.stringdotjar.jwebgpu.GpuBuffer;
+import io.github.stringdotjar.jwebgpu.GpuCallbackMode;
+import io.github.stringdotjar.jwebgpu.GpuCommandBuffer;
+import io.github.stringdotjar.jwebgpu.GpuExtent3D;
+import io.github.stringdotjar.jwebgpu.GpuQueue;
+import io.github.stringdotjar.jwebgpu.GpuQueueWorkDoneCallback;
+import io.github.stringdotjar.jwebgpu.GpuTexelCopyBufferLayout;
+import io.github.stringdotjar.jwebgpu.GpuTexelCopyTextureInfo;
+
+import java.nio.ByteBuffer;
+
+/**
+ * The Android implementation of {@link GpuQueue}, built on Dawn's {@code WGPUQueue}.
+ *
+ * <p>The wrapper stores only the native handle, as a {@code long}. Calls are marshalled into thread-local scratch
+ * memory, so they allocate nothing. Methods that create objects also come in a refilling variant that reuses an
+ * existing wrapper, so per-frame objects need no Java allocation either.
+ *
+ * <p>This class is generated from the specification.
+ */
+public final class JniGpuQueue extends GpuQueue {
+
+  private long address;
+
+  /**
+   * Creates an empty wrapper that holds no native object.
+   *
+   * <p>It reports {@link #isReleased()} until a refilling method stores a handle in it.
+   */
+  public JniGpuQueue() {}
+
+  /**
+   * Wraps a native handle. The wrapper owns the reference, so release it when done.
+   *
+   * @param address The native {@code WGPUQueue} handle. It must not be 0.
+   */
+  public JniGpuQueue(long address) {
+    this.address = address;
+  }
+
+  @Override
+  public long onSubmittedWorkDone(GpuCallbackMode mode, GpuQueueWorkDoneCallback callback) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    if (callback == null) {
+      throw new NullPointerException("callback");
+    }
+    long cb = s.alloc(40L);
+    s.putLong(cb + 0L, 0L);
+    s.putInt(cb + 8L, mode.value);
+    s.putLong(cb + 16L, JniCallbacks.QUEUE_WORK_DONE);
+    s.putLong(cb + 24L, CallbackTable.put(callback));
+    s.putLong(cb + 32L, 0L);
+    return Jni.wgpuQueueOnSubmittedWorkDone(self, cb);
+  }
+
+  @Override
+  public void setLabel(String label) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    Jni.wgpuQueueSetLabel(self, s.view(label));
+  }
+
+  @Override
+  public void submit(GpuCommandBuffer[] commands, int commandCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = 0L;
+    if (commandCount > 0) {
+      n0 = s.alloc(commandCount * 8L);
+      for (int i = 0; i < commandCount; i++) {
+        s.putLong(n0 + i * 8L, JniGpuCommandBuffer.addr(commands[i]));
+      }
+    }
+    Jni.wgpuQueueSubmit(self, commandCount, n0);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, ByteBuffer data) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.input(data);
+    Jni.wgpuQueueWriteBuffer(self, JniGpuBuffer.addr(buffer), bufferOffset, n0, data.remaining());
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, byte[] data, int dataOffset, int dataCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 1L);
+    s.putBytes(n0, data, dataOffset, dataCount);
+    Jni.wgpuQueueWriteBuffer(self, JniGpuBuffer.addr(buffer), bufferOffset, n0, dataCount * 1L);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, short[] data, int dataOffset, int dataCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 2L);
+    s.putShorts(n0, data, dataOffset, dataCount);
+    Jni.wgpuQueueWriteBuffer(self, JniGpuBuffer.addr(buffer), bufferOffset, n0, dataCount * 2L);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, int[] data, int dataOffset, int dataCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 4L);
+    s.putInts(n0, data, dataOffset, dataCount);
+    Jni.wgpuQueueWriteBuffer(self, JniGpuBuffer.addr(buffer), bufferOffset, n0, dataCount * 4L);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, float[] data, int dataOffset, int dataCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 4L);
+    s.putFloats(n0, data, dataOffset, dataCount);
+    Jni.wgpuQueueWriteBuffer(self, JniGpuBuffer.addr(buffer), bufferOffset, n0, dataCount * 4L);
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, ByteBuffer data, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.input(data);
+    Jni.wgpuQueueWriteTexture(self, JniGpuTexelCopyTextureInfoStruct.put(s, destination), n0, data.remaining(), JniGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), JniGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, byte[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 1L);
+    s.putBytes(n0, data, dataOffset, dataCount);
+    Jni.wgpuQueueWriteTexture(self, JniGpuTexelCopyTextureInfoStruct.put(s, destination), n0, dataCount * 1L, JniGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), JniGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, short[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 2L);
+    s.putShorts(n0, data, dataOffset, dataCount);
+    Jni.wgpuQueueWriteTexture(self, JniGpuTexelCopyTextureInfoStruct.put(s, destination), n0, dataCount * 2L, JniGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), JniGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, int[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 4L);
+    s.putInts(n0, data, dataOffset, dataCount);
+    Jni.wgpuQueueWriteTexture(self, JniGpuTexelCopyTextureInfoStruct.put(s, destination), n0, dataCount * 4L, JniGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), JniGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, float[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 4L);
+    s.putFloats(n0, data, dataOffset, dataCount);
+    Jni.wgpuQueueWriteTexture(self, JniGpuTexelCopyTextureInfoStruct.put(s, destination), n0, dataCount * 4L, JniGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), JniGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void release() {
+    long a = address;
+    if (a != 0L) {
+      address = 0L;
+      Jni.wgpuQueueRelease(a);
+    }
+  }
+
+  @Override
+  public void addRef() {
+    Jni.wgpuQueueAddRef(live());
+  }
+
+  @Override
+  public boolean isReleased() {
+    return address == 0L;
+  }
+
+  /**
+   * Returns the native handle of a wrapper that was created by this backend.
+   *
+   * @param o The object. It must not be null or released.
+   * @return The native handle.
+   * @throws IllegalArgumentException If the object belongs to another backend.
+   * @throws IllegalStateException If the object was released.
+   */
+  static long addr(GpuQueue o) {
+    if (o instanceof JniGpuQueue f) {
+      long a = f.address;
+      if (a == 0L) {
+        throw new IllegalStateException("The GpuQueue was released");
+      }
+      return a;
+    }
+    if (o == null) {
+      throw new NullPointerException("queue");
+    }
+    throw new IllegalArgumentException("The GpuQueue was not created by the JNI backend");
+  }
+
+  /**
+   * Returns the native handle of a wrapper, or 0 for null.
+   *
+   * @param o The object, or null.
+   * @return The native handle, or 0.
+   */
+  static long addrOrNull(GpuQueue o) {
+    return o == null ? 0L : addr(o);
+  }
+
+  /**
+   * Checks that an object was created by this backend.
+   *
+   * @param o The object. It must not be null.
+   * @return The same object, as the backend type.
+   * @throws IllegalArgumentException If the object belongs to another backend.
+   */
+  static JniGpuQueue cast(GpuQueue o) {
+    if (o instanceof JniGpuQueue f) {
+      return f;
+    }
+    if (o == null) {
+      throw new NullPointerException("into");
+    }
+    throw new IllegalArgumentException("The GpuQueue was not created by the JNI backend");
+  }
+
+  /**
+   * Stores a new handle in this wrapper and releases the handle it held before.
+   *
+   * @param handle The new native handle.
+   */
+  void assign(long handle) {
+    long old = address;
+    address = handle;
+    if (old != 0L) {
+      Jni.wgpuQueueRelease(old);
+    }
+  }
+
+  private long live() {
+    long a = address;
+    if (a == 0L) {
+      throw new IllegalStateException("The GpuQueue was released");
+    }
+    return a;
+  }
+
+  /**
+   * Returns the native handle.
+   *
+   * @return The handle, or 0 if the wrapper is empty or released.
+   */
+  public long getAddress() {
+    return address;
+  }
+}

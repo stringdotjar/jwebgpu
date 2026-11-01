@@ -1,0 +1,85 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu.jni;
+
+import io.github.stringdotjar.jwebgpu.GpuRenderPassDescriptor;
+
+/**
+ * Copies a render pass descriptor struct between {@link GpuRenderPassDescriptor} and native memory.
+ *
+ * <p>The offsets are the C layout of {@code WGPURenderPassDescriptor}, 64 bytes in total. This class is generated; see
+ * the emitter for the rules.
+ */
+final class JniGpuRenderPassDescriptorStruct {
+
+  static final long SIZE = 64L;
+  static final long OFF_NEXT_IN_CHAIN = 0L;
+  static final long OFF_LABEL = 8L;
+  static final long OFF_COLOR_ATTACHMENT_COUNT = 24L;
+  static final long OFF_COLOR_ATTACHMENTS = 32L;
+  static final long OFF_DEPTH_STENCIL_ATTACHMENT = 40L;
+  static final long OFF_OCCLUSION_QUERY_SET = 48L;
+  static final long OFF_TIMESTAMP_WRITES = 56L;
+
+  private JniGpuRenderPassDescriptorStruct() {}
+
+  /**
+   * Reserves memory for the struct and writes the object into it.
+   *
+   * @param s The scratch memory of the calling thread.
+   * @param d The object to copy.
+   * @return The address of the struct.
+   */
+  static long put(Scratch s, GpuRenderPassDescriptor d) {
+    long a = s.alloc(SIZE);
+    write(s, d, a);
+    return a;
+  }
+
+  /**
+   * Writes the object at an address that has room for {@link #SIZE} bytes.
+   *
+   * @param s The scratch memory of the calling thread.
+   * @param d The object to copy.
+   * @param a The address to write to.
+   */
+  static void write(Scratch s, GpuRenderPassDescriptor d, long a) {
+    s.putLong(a + OFF_NEXT_IN_CHAIN, JniChains.put(s, d.nextInChain));
+    s.putView(a + OFF_LABEL, d.label);
+    {
+      long p = 0L;
+      if (d.colorAttachmentCount > 0) {
+        p = s.alloc(d.colorAttachmentCount * JniGpuRenderPassColorAttachmentStruct.SIZE);
+        for (int i = 0; i < d.colorAttachmentCount; i++) {
+          JniGpuRenderPassColorAttachmentStruct.write(s, d.colorAttachments[i], p + i * JniGpuRenderPassColorAttachmentStruct.SIZE);
+        }
+      }
+      s.putLong(a + OFF_COLOR_ATTACHMENT_COUNT, d.colorAttachmentCount);
+      s.putLong(a + OFF_COLOR_ATTACHMENTS, p);
+    }
+    s.putLong(a + OFF_DEPTH_STENCIL_ATTACHMENT, d.depthStencilAttachment == null ? 0L : JniGpuRenderPassDepthStencilAttachmentStruct.put(s, d.depthStencilAttachment));
+    s.putLong(a + OFF_OCCLUSION_QUERY_SET, JniGpuQuerySet.addrOrNull(d.occlusionQuerySet));
+    s.putLong(a + OFF_TIMESTAMP_WRITES, d.timestampWrites == null ? 0L : JniGpuPassTimestampWritesStruct.put(s, d.timestampWrites));
+  }
+}

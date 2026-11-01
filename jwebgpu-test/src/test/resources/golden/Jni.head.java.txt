@@ -1,0 +1,70 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu.jni;
+
+/**
+ * The native functions of the JNI backend, one per C function of {@code webgpu.h}.
+ *
+ * <p>The C glue library registers all of them at once when it loads. A parameter is a {@code long} for every handle and
+ * pointer, and a struct that C takes by value (a string view or a callback info) is passed as the address of the struct
+ * in scratch memory. This class is generated from the specification.
+ */
+final class Jni {
+
+  private Jni() {}
+
+  /**
+   * Returns the address of the C function that receives one kind of callback.
+   *
+   * @param index The position of the callback in the specification.
+   * @return The function address.
+   */
+  static native long callbackAddress(int index);
+
+  static native long wgpuCreateInstance(long a0);
+  static native void wgpuGetInstanceFeatures(long a0);
+  static native int wgpuGetInstanceLimits(long a0);
+  static native int wgpuHasInstanceFeature(int a0);
+  static native long wgpuGetProcAddress(long a0);
+  static native void wgpuAdapterGetFeatures(long a0, long a1);
+  static native int wgpuAdapterGetInfo(long a0, long a1);
+  static native int wgpuAdapterGetLimits(long a0, long a1);
+  static native int wgpuAdapterHasFeature(long a0, int a1);
+  static native long wgpuAdapterRequestDevice(long a0, long a1, long a2);
+  static native void wgpuAdapterAddRef(long a0);
+  static native void wgpuAdapterRelease(long a0);
+  static native void wgpuAdapterInfoFreeMembers(long a0);
+  static native void wgpuBindGroupSetLabel(long a0, long a1);
+  static native void wgpuBindGroupAddRef(long a0);
+  static native void wgpuBindGroupRelease(long a0);
+  static native void wgpuBindGroupLayoutSetLabel(long a0, long a1);
+  static native void wgpuBindGroupLayoutAddRef(long a0);
+  static native void wgpuBindGroupLayoutRelease(long a0);
+  static native void wgpuBufferDestroy(long a0);
+  static native long wgpuBufferGetConstMappedRange(long a0, long a1, long a2);
+  static native long wgpuBufferGetMappedRange(long a0, long a1, long a2);
+  static native int wgpuBufferGetMapState(long a0);
+  static native long wgpuBufferGetSize(long a0);
+  static native long wgpuBufferGetUsage(long a0);
+  static native long wgpuBufferMapAsync(long a0, long a1, long a2, long a3, long a4);

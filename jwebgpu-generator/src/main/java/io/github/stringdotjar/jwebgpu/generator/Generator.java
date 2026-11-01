@@ -27,6 +27,8 @@ import io.github.stringdotjar.jwebgpu.generator.emit.ApiChecksEmitter;
 import io.github.stringdotjar.jwebgpu.generator.emit.ApiEmitter;
 import io.github.stringdotjar.jwebgpu.generator.emit.FfmEmitter;
 import io.github.stringdotjar.jwebgpu.generator.emit.GeneratedFile;
+import io.github.stringdotjar.jwebgpu.generator.emit.JniCEmitter;
+import io.github.stringdotjar.jwebgpu.generator.emit.JniJavaEmitter;
 import io.github.stringdotjar.jwebgpu.generator.model.EnumType;
 import io.github.stringdotjar.jwebgpu.generator.model.GpuFunction;
 import io.github.stringdotjar.jwebgpu.generator.model.Spec;
@@ -46,7 +48,7 @@ import java.util.Locale;
 /**
  * Entry point of the build-time code generator.
  *
- * <p>Usage: {@code Generator [--spec path/to/webgpu.json] [--emit api|ffm|api-checks --out directory]}.
+ * <p>Usage: {@code Generator [--spec path/to/webgpu.json] [--emit api|ffm|api-checks|jni-java|jni-java-android|jni-c --out directory]}.
  *
  * <ul>
  *   <li>Without {@code --emit}, the generator loads the specification and prints a summary of what it found.
@@ -56,6 +58,9 @@ import java.util.Locale;
  *       specification, for the test source set of a module (see {@link ApiChecksEmitter}).
  *   <li>With {@code --emit ffm}, it writes the sources of the desktop backend the same way (see
  *       {@link FfmEmitter}).
+ *   <li>With {@code --emit jni-java}, it writes the Java sources of the JNI backend, and {@code jni-java-android} does
+ *       the same with ART's {@code @FastNative} on the cheap native methods (see {@link JniJavaEmitter}).
+ *   <li>With {@code --emit jni-c}, it writes the C glue of the JNI backend (see {@link JniCEmitter}).
  * </ul>
  *
  * <p>Without {@code --spec}, {@code spec/webgpu.json} is read relative to the working directory. A single plain
@@ -103,8 +108,15 @@ public final class Generator {
       } else if (emit.equals("ffm") && out != null) {
         int count = write(FfmEmitter.emit(model), Path.of(out));
         System.out.println("Wrote " + count + " FFM backend source files to " + out);
+      } else if ((emit.equals("jni-java") || emit.equals("jni-java-android")) && out != null) {
+        int count = write(JniJavaEmitter.emit(model, emit.equals("jni-java-android")), Path.of(out));
+        System.out.println("Wrote " + count + " JNI backend source files to " + out);
+      } else if (emit.equals("jni-c") && out != null) {
+        int count = write(JniCEmitter.emit(model), Path.of(out));
+        System.out.println("Wrote " + count + " JNI glue source file to " + out);
       } else {
-        System.err.println("Usage: Generator [--spec file] [--emit api|ffm|api-checks --out directory]");
+        System.err.println("Usage: Generator [--spec file] [--emit api|ffm|api-checks|jni-java|jni-java-android|jni-c"
+            + " --out directory]");
         System.exit(2);
       }
     } catch (JsonException | SpecException e) {
