@@ -21,7 +21,7 @@ open class JWebGpuGenerated(private val project: Project, private val generator:
   /**
    * Generates sources with the generator and adds them to a source set.
    *
-   * @param kind The value of the generator's `--emit` option (`api`, `ffm` or `api-checks`).
+   * @param kind The value of the generator's `--emit` option (`api`, `ffm`, `teavm` or `api-checks`).
    * @param sourceSet The name of the source set that receives the sources.
    */
   fun emit(kind: String, sourceSet: String = "main") {
@@ -71,6 +71,7 @@ open class JWebGpuGenerated(private val project: Project, private val generator:
       argumentProviders.add(CommandLineArgumentProvider {
         listOf(
           "--spec", specDir.file("webgpu.json").asFile.absolutePath,
+          "--idl", specDir.file("webgpu.idl").asFile.absolutePath,
           "--emit", kind,
           "--out", outDir.get().asFile.absolutePath
         )

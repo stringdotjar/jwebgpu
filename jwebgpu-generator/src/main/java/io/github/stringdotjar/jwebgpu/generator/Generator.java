@@ -29,6 +29,7 @@ import io.github.stringdotjar.jwebgpu.generator.emit.FfmEmitter;
 import io.github.stringdotjar.jwebgpu.generator.emit.GeneratedFile;
 import io.github.stringdotjar.jwebgpu.generator.emit.JniCEmitter;
 import io.github.stringdotjar.jwebgpu.generator.emit.JniJavaEmitter;
+import io.github.stringdotjar.jwebgpu.generator.emit.TeaVmEmitter;
 import io.github.stringdotjar.jwebgpu.generator.model.EnumType;
 import io.github.stringdotjar.jwebgpu.generator.model.GpuFunction;
 import io.github.stringdotjar.jwebgpu.generator.model.Spec;
@@ -37,6 +38,7 @@ import io.github.stringdotjar.jwebgpu.generator.model.StructKind;
 import io.github.stringdotjar.jwebgpu.generator.parse.JsonException;
 import io.github.stringdotjar.jwebgpu.generator.parse.SpecException;
 import io.github.stringdotjar.jwebgpu.generator.parse.SpecLoader;
+import io.github.stringdotjar.jwebgpu.generator.parse.WebIdlParser;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -48,7 +50,8 @@ import java.util.Locale;
 /**
  * Entry point of the build-time code generator.
  *
- * <p>Usage: {@code Generator [--spec path/to/webgpu.json] [--emit api|ffm|api-checks|jni-java|jni-java-android|jni-c --out directory]}.
+ * <p>Usage: {@code Generator [--spec path/to/webgpu.json] [--idl path/to/webgpu.idl]
+ * [--emit api|ffm|teavm|api-checks|jni-java|jni-java-android|jni-c --out directory]}.
  *
  * <ul>
  *   <li>Without {@code --emit}, the generator loads the specification and prints a summary of what it found.
@@ -61,6 +64,8 @@ import java.util.Locale;
  *   <li>With {@code --emit jni-java}, it writes the Java sources of the JNI backend, and {@code jni-java-android} does
  *       the same with ART's {@code @FastNative} on the cheap native methods (see {@link JniJavaEmitter}).
  *   <li>With {@code --emit jni-c}, it writes the C glue of the JNI backend (see {@link JniCEmitter}).
+ *   <li>With {@code --emit teavm}, it writes the sources of the web backend. This also reads the browser's WebIDL
+ *       from {@code --idl} (default: {@code webgpu.idl} next to the specification), see {@link TeaVmEmitter}.
  * </ul>
  *
  * <p>Without {@code --spec}, {@code spec/webgpu.json} is read relative to the working directory. A single plain
@@ -81,11 +86,13 @@ public final class Generator {
     String spec = DEFAULT_SPEC;
     String emit = null;
     String out = null;
+    String idl = null;
     for (int i = 0; i < args.length; i++) {
       switch (args[i]) {
         case "--spec" -> spec = value(args, ++i);
         case "--emit" -> emit = value(args, ++i);
         case "--out" -> out = value(args, ++i);
+        case "--idl" -> idl = value(args, ++i);
         default -> spec = args[i];
       }
     }
@@ -114,9 +121,13 @@ public final class Generator {
       } else if (emit.equals("jni-c") && out != null) {
         int count = write(JniCEmitter.emit(model), Path.of(out));
         System.out.println("Wrote " + count + " JNI glue source file to " + out);
+      } else if (emit.equals("teavm") && out != null) {
+        Path idlFile = idl != null ? Path.of(idl) : file.resolveSibling("webgpu.idl");
+        int count = write(TeaVmEmitter.emit(model, WebIdlParser.load(idlFile)), Path.of(out));
+        System.out.println("Wrote " + count + " web backend source files to " + out);
       } else {
-        System.err.println("Usage: Generator [--spec file] [--emit api|ffm|api-checks|jni-java|jni-java-android|jni-c"
-            + " --out directory]");
+        System.err.println("Usage: Generator [--spec file] [--idl file] [--emit api|ffm|teavm|api-checks|jni-java"
+            + "|jni-java-android|jni-c --out directory]");
         System.exit(2);
       }
     } catch (JsonException | SpecException e) {
