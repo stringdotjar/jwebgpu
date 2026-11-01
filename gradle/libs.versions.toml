@@ -1,0 +1,20 @@
+[versions]
+agp = "8.7.3"
+jetbrainsAnnotations = "26.1.0"
+junit = "5.10.0"
+spotless = "8.6.0"
+teavm = "0.13.0"
+vanniktech = "0.33.0"
+
+[libraries]
+android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrainsAnnotations" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+teavm-core = { module = "org.teavm:teavm-core", version.ref = "teavm" }
+
+[plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+vanniktech = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech" }

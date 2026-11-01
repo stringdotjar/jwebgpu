@@ -1,0 +1,98 @@
+import com.android.build.gradle.LibraryExtension
+import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
+
+plugins {
+  id("jwebgpu.java-base")
+  id("com.android.library")
+  id("com.vanniktech.maven.publish")
+}
+
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(25)
+  }
+}
+
+afterEvaluate {
+  val android = extensions.getByType(LibraryExtension::class.java)
+  tasks.register("javadoc", Javadoc::class.java) {
+    group = "documentation"
+    description = "Generates Javadoc for the Android release variant."
+    source(android.sourceSets.getByName("main").java.srcDirs)
+    // Ask for the plain class jars so Android library (AAR) dependencies are readable by Javadoc.
+    val classJars = configurations.getByName("releaseCompileClasspath").incoming.artifactView {
+      attributes.attribute(Attribute.of("artifactType", String::class.java), "android-classes-jar")
+    }.files
+    classpath = classJars.plus(files(android.bootClasspath))
+    options.encoding = "UTF-8"
+    (options as StandardJavadocDocletOptions).apply {
+      charSet = "UTF-8"
+      docEncoding = "UTF-8"
+      memberLevel = JavadocMemberLevel.PUBLIC
+      links("https://docs.oracle.com/en/java/javase/25/docs/api/")
+      if (JavaVersion.current().isJava9Compatible) {
+        addStringOption("Xdoclint:all,-missing", "-quiet")
+        addStringOption("Werror")
+      }
+    }
+    isFailOnError = true
+  }
+}
+
+// Package the javadoc task output as the -javadoc jar that Maven Central requires. AGP's own javadoc jar is not
+// used because its bundled Dokka cannot read newer Java language features (such as records) and fails the
+// release build.
+val javadocJar = tasks.register("javadocJar", Jar::class.java) {
+  group = "documentation"
+  description = "Packages the Android release Javadoc into a jar for publishing."
+  archiveClassifier = "javadoc"
+  from(tasks.named("javadoc"))
+}
+
+tasks.matching { it.name.startsWith("generateMetadataFileFor") }.configureEach {
+  enabled = false
+}
+
+mavenPublishing {
+  configure(AndroidSingleVariantLibrary(variant = "release", sourcesJar = true, publishJavadocJar = false))
+  publishToMavenCentral()
+
+  val hasSigning = findProperty("jwebgpu.signing.enabled")?.toString() == "true"
+    || findProperty("signing.keyId") != null
+    || findProperty("signingInMemoryKeyId") != null
+  if (hasSigning) {
+    signAllPublications()
+  }
+
+  coordinates(project.group as String, project.name, project.version as String)
+
+  pom {
+    name = rootProject.property("pomName") as String
+    description = rootProject.property("pomDescription") as String
+    url = rootProject.property("pomUrl") as String
+    licenses {
+      license {
+        name = rootProject.property("pomLicenseName") as String
+        url = rootProject.property("pomLicenseUrl") as String
+        distribution = "repo"
+      }
+    }
+    developers {
+      developer {
+        id = rootProject.property("pomDeveloperId") as String
+        name = rootProject.property("pomDeveloperName") as String
+      }
+    }
+    scm {
+      connection = rootProject.property("pomScmConnection") as String
+      developerConnection = rootProject.property("pomScmDeveloperConnection") as String
+      url = rootProject.property("pomScmUrl") as String
+    }
+  }
+}
+
+publishing {
+  publications.withType(MavenPublication::class.java).configureEach {
+    artifact(javadocJar)
+  }
+}
