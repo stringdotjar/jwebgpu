@@ -65,7 +65,9 @@ The rules that shape this layout:
 WebGPU has roughly 200 functions and 150 structs. Writing three binding layers by hand would let them drift apart and rot.
 Instead, the repository vendors the official machine-readable specifications and **generates** every layer:
 
-- `webgpu.yml` (the source of truth behind `webgpu.h`) produces the Java API, the FFM layer and the JNI layer.
+- `webgpu.json` (the machine-readable form of upstream's `webgpu.yml`, which is the source of truth behind `webgpu.h`)
+  produces the Java API, the FFM layer and the JNI layer. The generator's resolver applies the same expansion rules as
+  upstream's header generator, and a conformance test checks the result against the vendored `webgpu.h`.
 - The WebGPU WebIDL produces the browser (TeaVM) layer.
 
 Generated sources are written into each module's `build/generated` directory and are **never committed**. The spec is the

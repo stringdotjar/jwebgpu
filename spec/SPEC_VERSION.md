@@ -45,4 +45,7 @@ numbering and more. The generator's resolver mirrors those rules. When updating,
 3. Update the tables above (upstream commit, Dawn commit, date).
 4. Run `./gradlew compileJava :jwebgpu-test:test`. The conformance test compares the resolved model with
    `webgpu.h` and fails if they disagree, which usually means that upstream changed a generation rule.
+   To also see what Dawn's own header adds (it is not vendored), pass the path of a Dawn-built `webgpu.h`:
+   `./gradlew :jwebgpu-test:test -Pjwebgpu.dawnHeader=/path/to/webgpu.h`. The extras are printed, and the test fails
+   only if a declaration that both headers share differs.
 5. Commit the specification update on its own, separate from any generator changes.
