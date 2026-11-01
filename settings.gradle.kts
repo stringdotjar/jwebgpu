@@ -73,7 +73,9 @@ val nativeTargets = listOf(
 )
 for (target in nativeTargets) {
   include("jwebgpu-natives-$target")
-  project(":jwebgpu-natives-$target").projectDir = file("jwebgpu-natives/$target")
+  // The library of a target is never committed, so a fresh checkout has no folder for it, and Gradle refuses a
+  // project without one.
+  project(":jwebgpu-natives-$target").projectDir = file("jwebgpu-natives/$target").also { it.mkdirs() }
 }
 
 if (includeAndroid) {
