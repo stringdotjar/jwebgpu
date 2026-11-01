@@ -25,6 +25,7 @@ package io.github.stringdotjar.jwebgpu.ffm;
 
 import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
@@ -58,6 +59,7 @@ final class Scratch {
   private long base;
   private long limit;
   private long pos;
+  private long directBase;
 
   /** The address of {@link #viewSegment}. */
   final long viewAddress;
@@ -73,6 +75,7 @@ final class Scratch {
 
   private final MemorySegment holder;
   private MemorySegment block;
+  private ByteBuffer direct;
   private MemorySegment[] retired = new MemorySegment[2];
   private long[] markPos = new long[4];
   private long[] markBase = new long[4];
@@ -212,6 +215,26 @@ final class Scratch {
   MemorySegment view(String text) {
     putView(viewAddress, text);
     return viewSegment;
+  }
+
+  /**
+   * Returns the address of the first remaining byte of a direct buffer.
+   *
+   * <p>Finding a direct buffer's address needs a temporary {@link MemorySegment}, which is only free of garbage
+   * when the JIT happens to optimize it away. Callers almost always upload from the same buffer every frame, so
+   * this remembers the last direct buffer and the address of its first byte: a repeated buffer costs no
+   * allocation at all, and only a new buffer pays for one temporary object. The remembered buffer stays reachable
+   * until a different one replaces it.
+   *
+   * @param data A direct buffer.
+   * @return The address of {@code data.position()}.
+   */
+  long directAddress(ByteBuffer data) {
+    if (data != direct) {
+      directBase = MemorySegment.ofBuffer(data).address() - data.position();
+      direct = data;
+    }
+    return directBase + data.position();
   }
 
   /**

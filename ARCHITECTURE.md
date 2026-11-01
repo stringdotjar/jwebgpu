@@ -163,9 +163,10 @@ How a call stays free of allocation:
   correct. Callbacks that run inside a call (for example an uncaptured error callback) mark the pad as in use, so a nested
   call does not overwrite the outer one.
 - **Data parameters.** Arrays are copied into the scratch block with the static `MemorySegment.copy` overloads. A direct
-  `ByteBuffer` is passed by address without a copy; a heap `ByteBuffer` is copied through its array. Getting the address of
-  a direct buffer goes through `MemorySegment.ofBuffer`, which creates a small segment object; the JIT removes it after
-  warm-up (the allocation test measures 0 bytes), but this relies on escape analysis.
+  `ByteBuffer` is passed by address without a copy; a heap `ByteBuffer` is copied through its array. Finding a direct
+  buffer's address needs a temporary `MemorySegment`, so each thread's scratch remembers the last direct buffer and its
+  base address: uploading from the same buffer again (the usual per-frame pattern) allocates nothing, and only a new
+  buffer pays for one temporary object.
 - **Returned objects.** `createX(desc)` creates a new wrapper. `createX(desc, into)` only stores the new handle in `into`
   (and releases the handle `into` held before). Output structs (`getLimits`, `getInfo`, `getCurrentTexture`, ...) are
   filled in scratch memory and read back into the caller's object; arrays in them are replaced when the capacity is too

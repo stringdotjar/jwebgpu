@@ -168,7 +168,7 @@ final class Mem {
   static long input(Scratch s, ByteBuffer data) {
     int count = data.remaining();
     if (data.isDirect()) {
-      return MemorySegment.ofBuffer(data).address();
+      return s.directAddress(data);
     }
     long address = s.alloc(count);
     if (data.hasArray()) {
@@ -194,7 +194,7 @@ final class Mem {
    */
   static long output(Scratch s, ByteBuffer data) {
     if (data.isDirect()) {
-      return MemorySegment.ofBuffer(data).address();
+      return s.directAddress(data);
     }
     return s.alloc(data.remaining());
   }
