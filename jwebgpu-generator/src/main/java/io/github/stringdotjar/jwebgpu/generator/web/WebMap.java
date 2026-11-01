@@ -23,6 +23,9 @@
  */
 package io.github.stringdotjar.jwebgpu.generator.web;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import io.github.stringdotjar.jwebgpu.generator.model.BitflagType;
 import io.github.stringdotjar.jwebgpu.generator.model.BitflagValue;
 import io.github.stringdotjar.jwebgpu.generator.model.CType;
@@ -44,8 +47,6 @@ import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.DictionaryMember;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.Enumeration;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.Interface;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.Operation;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.HashSet;

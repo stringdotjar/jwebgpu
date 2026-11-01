@@ -23,6 +23,9 @@
  */
 package io.github.stringdotjar.jwebgpu.generator.web;
 
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
 import io.github.stringdotjar.jwebgpu.generator.SpecFiles;
 import io.github.stringdotjar.jwebgpu.generator.model.EnumType;
 import io.github.stringdotjar.jwebgpu.generator.model.GpuFunction;
@@ -32,8 +35,6 @@ import io.github.stringdotjar.jwebgpu.generator.web.WebMap.Binding;
 import io.github.stringdotjar.jwebgpu.generator.web.WebMap.EnumMapping;
 import io.github.stringdotjar.jwebgpu.generator.web.WebMap.StructMapping;
 import io.github.stringdotjar.jwebgpu.generator.web.WebMap.Support;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;

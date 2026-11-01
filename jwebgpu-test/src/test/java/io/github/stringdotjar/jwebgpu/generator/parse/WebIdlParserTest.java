@@ -23,6 +23,8 @@
  */
 package io.github.stringdotjar.jwebgpu.generator.parse;
 
+import org.junit.jupiter.api.Test;
+
 import io.github.stringdotjar.jwebgpu.generator.SpecFiles;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.Argument;
@@ -31,7 +33,6 @@ import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.DictionaryMember;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.Interface;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.Operation;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl.Type;
-import org.junit.jupiter.api.Test;
 
 import java.util.List;
 

@@ -25,8 +25,8 @@ package io.github.stringdotjar.jwebgpu.generator;
 
 import io.github.stringdotjar.jwebgpu.generator.model.Spec;
 import io.github.stringdotjar.jwebgpu.generator.model.WebIdl;
-import io.github.stringdotjar.jwebgpu.generator.parse.WebIdlParser;
 import io.github.stringdotjar.jwebgpu.generator.parse.SpecLoader;
+import io.github.stringdotjar.jwebgpu.generator.parse.WebIdlParser;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
