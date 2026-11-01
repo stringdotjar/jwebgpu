@@ -6,3 +6,7 @@ plugins {
 dependencies {
   implementation(libs.jetbrains.annotations)
 }
+
+jwebgpuGenerated {
+  emit("api")
+}
