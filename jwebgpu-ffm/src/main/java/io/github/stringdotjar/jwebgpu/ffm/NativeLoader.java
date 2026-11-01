@@ -38,9 +38,10 @@ import java.util.Locale;
 /**
  * Finds, extracts and loads the native WebGPU library (Dawn).
  *
- * <p>The library for each platform is packed into the jar as {@code natives/<os>-<arch>/<library name>}, for example
- * {@code natives/linux-x86_64/libwebgpu_dawn.so}. A shared library cannot be loaded from inside a jar, so the loader
- * copies it once into a cache directory and loads that copy. The directory name contains a hash of the file, so
+ * <p>The library for each platform lives in its own jar, {@code jwebgpu-natives-<os>-<arch>}, as
+ * {@code natives/<os>-<arch>/<library name>}, for example {@code natives/linux-x86_64/libwebgpu_dawn.so}. The loader
+ * finds it on the class path, so an application only needs the jars of the platforms it ships to. A shared library
+ * cannot be loaded from inside a jar, so the loader copies it once into a cache directory and loads that copy. The directory name contains a hash of the file, so
  * different versions never clash, and later runs reuse the copy without writing anything.
  *
  * <p>The library is picked in this order:
@@ -48,14 +49,14 @@ import java.util.Locale;
  * <ol>
  *   <li>the path given to {@link #load(Path)},
  *   <li>the file named by the system property {@value #PROPERTY},
- *   <li>the copy packed into the jar for the current operating system and CPU.
+ *   <li>the copy from the natives jar for the current operating system and CPU.
  * </ol>
  *
  * <p>Loading the same library twice does nothing. Loading a different file after one is loaded fails.
  */
 final class NativeLoader {
 
-  /** The system property that names a library file to use instead of the packed one. */
+  /** The system property that names a library file to use instead of the one in the natives jar. */
   static final String PROPERTY = "jwebgpu.library.path";
 
   private static final Object LOCK = new Object();
@@ -66,7 +67,7 @@ final class NativeLoader {
   /**
    * Loads the native library.
    *
-   * @param library The library file to use, or {@code null} to use the system property or the packed copy.
+   * @param library The library file to use, or {@code null} to use the system property or the natives jar.
    * @throws IllegalStateException If the platform is not supported, the file cannot be found, or a different library
    *     was loaded before.
    */
@@ -143,7 +144,7 @@ final class NativeLoader {
   }
 
   /**
-   * Returns the path of the packed library inside the jar.
+   * Returns the path of the library inside its natives jar.
    *
    * @return A resource path such as {@code natives/linux-x86_64/libwebgpu_dawn.so}.
    */
@@ -157,8 +158,9 @@ final class NativeLoader {
     byte[] bytes;
     try (InputStream in = NativeLoader.class.getClassLoader().getResourceAsStream(resource)) {
       if (in == null) {
-        throw new IllegalStateException("The jar has no native library at " + resource + ". Build it with "
-            + "scripts/build_natives.sh, or set -D" + PROPERTY + "=/path/to/library.");
+        throw new IllegalStateException("No native library was found on the class path at " + resource + ". Add "
+            + "io.github.stringdotjar:jwebgpu-natives-" + os() + "-" + arch() + " to the runtime class path, or set -D"
+            + PROPERTY + "=/path/to/library.");
       }
       bytes = in.readAllBytes();
     } catch (IOException e) {

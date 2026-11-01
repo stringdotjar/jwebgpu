@@ -49,8 +49,9 @@ import java.nio.file.Path;
  * executable jar). Without it, Java prints a warning on the first native call, and a future Java version will refuse.
  *
  * <p>Which library is loaded: the file given to {@link #install(Path)}, otherwise the file named by the system
- * property {@code jwebgpu.library.path}, otherwise the copy packed into the jar for the current operating system and
- * CPU, which is extracted once into a cache directory.
+ * property {@code jwebgpu.library.path}, otherwise the copy from the {@code jwebgpu-natives-<os>-<arch>} jar for the
+ * current operating system and CPU, which is extracted once into a cache directory. That jar is a separate dependency,
+ * so an application only bundles the platforms it ships to.
  */
 public final class JWebGpuFfm {
 
@@ -59,7 +60,7 @@ public final class JWebGpuFfm {
 
   private JWebGpuFfm() {}
 
-  /** Loads the native library and installs the backend, using the library packed into the jar. */
+  /** Loads the native library and installs the backend, using the library from the natives jar. */
   public static void install() {
     install(null);
   }
@@ -69,7 +70,7 @@ public final class JWebGpuFfm {
    *
    * <p>Calling the installer again with the same library does nothing.
    *
-   * @param library The library file, or {@code null} to use the system property or the packed copy.
+   * @param library The library file, or {@code null} to use the system property or the natives jar.
    * @throws IllegalStateException If the platform is not supported, the library cannot be found, or a different
    *     library or backend is already installed.
    */
