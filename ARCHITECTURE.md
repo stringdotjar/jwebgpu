@@ -74,6 +74,30 @@ Generated sources are written into each module's `build/generated` directory and
 single source of truth, so there is nothing to drift. Reviewers see changes through the emitters' golden-file tests, and the
 published `-sources` and `-javadoc` jars still contain the generated code for browsing in an IDE.
 
+### The generated API
+
+`./gradlew :jwebgpu-api:compileJava` runs the generator first. The convention plugin `jwebgpu.generated-sources` registers
+the task `generateJWebGpuSources`, which runs the generator's `ApiEmitter` (`--emit api --out <dir>`) and writes about 180
+Java files into `jwebgpu-api/build/generated/sources/jwebgpu/main/java`. That directory is added to the `main` source set,
+so compiling, Javadoc, the sources jar and Checkstyle all see it, and Spotless skips it because the emitter already writes
+formatted code. The emitter's output is covered by golden-file tests under `jwebgpu-test/src/test/resources/golden`; run
+the tests with `-Pjwebgpu.updateGolden=true` to rewrite them after a deliberate change.
+
+The API mirrors the browser's WebGPU names so the MDN documentation maps one to one:
+
+- Every type has the `Gpu` prefix: objects (`GpuDevice`), descriptors (`GpuRenderPassDescriptor`), enums
+  (`GpuTextureFormat`), bit flags (`GpuTextureUsage`) and callbacks (`GpuRequestAdapterCallback`). Methods are camelCase and
+  lose the object name (`device.createBuffer(descriptor)`).
+- Enums are Java enums with a public `value` and a static `of(int)` that returns `null` for numbers outside the
+  specification. Constants are UPPER_SNAKE_CASE; a name that starts with a digit gets a `D` in front (`D2`, `D2_ARRAY`).
+- Bit flags are classes of `long` constants, and the sentinel values live in `GpuConstants`.
+- Descriptors are mutable classes with public fields, a constructor that applies the defaults of the C header, and a
+  `reset()` method. Nested structs are final, preallocated fields. Arrays are a fixed-capacity array plus an `int` count.
+- Extension structs extend `GpuChainedStruct`; extensible descriptors have a `nextInChain` field.
+- Objects are abstract classes on top of `GpuObject`. A method that returns an object also has an overload that refills an
+  existing wrapper. Raw bytes are passed as a `ByteBuffer` or as `byte[]`, `short[]`, `int[]` or `float[]` with an offset
+  and a count.
+
 ## Typed wrapper objects
 
 Every WebGPU object is a typed Java wrapper (`GpuTexture`) instead of a raw `long` handle:
