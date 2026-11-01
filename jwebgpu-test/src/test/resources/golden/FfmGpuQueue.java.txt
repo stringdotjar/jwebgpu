@@ -1,0 +1,367 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2026 stringdotjar
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+package io.github.stringdotjar.jwebgpu.ffm;
+
+import io.github.stringdotjar.jwebgpu.GpuBuffer;
+import io.github.stringdotjar.jwebgpu.GpuCallbackMode;
+import io.github.stringdotjar.jwebgpu.GpuCommandBuffer;
+import io.github.stringdotjar.jwebgpu.GpuExtent3D;
+import io.github.stringdotjar.jwebgpu.GpuQueue;
+import io.github.stringdotjar.jwebgpu.GpuQueueWorkDoneCallback;
+import io.github.stringdotjar.jwebgpu.GpuTexelCopyBufferLayout;
+import io.github.stringdotjar.jwebgpu.GpuTexelCopyTextureInfo;
+
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+import java.lang.invoke.MethodHandle;
+import java.nio.ByteBuffer;
+
+/**
+ * The desktop implementation of {@link GpuQueue}, built on Dawn's {@code WGPUQueue}.
+ *
+ * <p>The wrapper stores only the native handle, as a {@code long}. Calls are marshalled into thread-local scratch
+ * memory, so they allocate nothing. Methods that create objects also come in a refilling variant that reuses an
+ * existing wrapper, so per-frame objects need no Java allocation either.
+ *
+ * <p>This class is generated from the specification.
+ */
+public final class FfmGpuQueue extends GpuQueue {
+
+  private long address;
+
+  /**
+   * Creates an empty wrapper that holds no native object.
+   *
+   * <p>It reports {@link #isReleased()} until a refilling method stores a handle in it.
+   */
+  public FfmGpuQueue() {}
+
+  /**
+   * Wraps a native handle. The wrapper owns the reference, so release it when done.
+   *
+   * @param address The native {@code WGPUQueue} handle. It must not be 0.
+   */
+  public FfmGpuQueue(long address) {
+    this.address = address;
+  }
+
+  @Override
+  public long onSubmittedWorkDone(GpuCallbackMode mode, GpuQueueWorkDoneCallback callback) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    if (callback == null) {
+      throw new NullPointerException("callback");
+    }
+    long cb = s.callbackAddress;
+    Mem.putLong(cb + 0L, 0L);
+    Mem.putInt(cb + 8L, mode.value);
+    Mem.putLong(cb + 16L, FfmCallbacks.QUEUE_WORK_DONE);
+    Mem.putLong(cb + 24L, CallbackTable.put(callback));
+    Mem.putLong(cb + 32L, 0L);
+    return Fn.wgpuQueueOnSubmittedWorkDone(self, s.callbackSegment);
+  }
+
+  @Override
+  public void setLabel(String label) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    Fn.wgpuQueueSetLabel(self, s.view(label));
+  }
+
+  @Override
+  public void submit(GpuCommandBuffer[] commands, int commandCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = 0L;
+    if (commandCount > 0) {
+      n0 = s.alloc(commandCount * 8L);
+      for (int i = 0; i < commandCount; i++) {
+        Mem.putLong(n0 + i * 8L, FfmGpuCommandBuffer.addr(commands[i]));
+      }
+    }
+    Fn.wgpuQueueSubmit(self, commandCount, n0);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, ByteBuffer data) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = Mem.input(s, data);
+    Fn.wgpuQueueWriteBuffer(self, FfmGpuBuffer.addr(buffer), bufferOffset, n0, data.remaining());
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, byte[] data, int dataOffset, int dataCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 1L);
+    Mem.putBytes(n0, data, dataOffset, dataCount);
+    Fn.wgpuQueueWriteBuffer(self, FfmGpuBuffer.addr(buffer), bufferOffset, n0, dataCount * 1L);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, short[] data, int dataOffset, int dataCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 2L);
+    Mem.putShorts(n0, data, dataOffset, dataCount);
+    Fn.wgpuQueueWriteBuffer(self, FfmGpuBuffer.addr(buffer), bufferOffset, n0, dataCount * 2L);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, int[] data, int dataOffset, int dataCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 4L);
+    Mem.putInts(n0, data, dataOffset, dataCount);
+    Fn.wgpuQueueWriteBuffer(self, FfmGpuBuffer.addr(buffer), bufferOffset, n0, dataCount * 4L);
+  }
+
+  @Override
+  public void writeBuffer(GpuBuffer buffer, long bufferOffset, float[] data, int dataOffset, int dataCount) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 4L);
+    Mem.putFloats(n0, data, dataOffset, dataCount);
+    Fn.wgpuQueueWriteBuffer(self, FfmGpuBuffer.addr(buffer), bufferOffset, n0, dataCount * 4L);
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, ByteBuffer data, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = Mem.input(s, data);
+    Fn.wgpuQueueWriteTexture(self, FfmGpuTexelCopyTextureInfoStruct.put(s, destination), n0, data.remaining(), FfmGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), FfmGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, byte[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 1L);
+    Mem.putBytes(n0, data, dataOffset, dataCount);
+    Fn.wgpuQueueWriteTexture(self, FfmGpuTexelCopyTextureInfoStruct.put(s, destination), n0, dataCount * 1L, FfmGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), FfmGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, short[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 2L);
+    Mem.putShorts(n0, data, dataOffset, dataCount);
+    Fn.wgpuQueueWriteTexture(self, FfmGpuTexelCopyTextureInfoStruct.put(s, destination), n0, dataCount * 2L, FfmGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), FfmGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, int[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 4L);
+    Mem.putInts(n0, data, dataOffset, dataCount);
+    Fn.wgpuQueueWriteTexture(self, FfmGpuTexelCopyTextureInfoStruct.put(s, destination), n0, dataCount * 4L, FfmGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), FfmGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void writeTexture(GpuTexelCopyTextureInfo destination, float[] data, int dataOffset, int dataCount, GpuTexelCopyBufferLayout dataLayout, GpuExtent3D writeSize) {
+    long self = live();
+    Scratch s = Scratch.begin();
+    long n0 = s.alloc(dataCount * 4L);
+    Mem.putFloats(n0, data, dataOffset, dataCount);
+    Fn.wgpuQueueWriteTexture(self, FfmGpuTexelCopyTextureInfoStruct.put(s, destination), n0, dataCount * 4L, FfmGpuTexelCopyBufferLayoutStruct.put(s, dataLayout), FfmGpuExtent3DStruct.put(s, writeSize));
+  }
+
+  @Override
+  public void release() {
+    long a = address;
+    if (a != 0L) {
+      address = 0L;
+      Fn.wgpuQueueRelease(a);
+    }
+  }
+
+  @Override
+  public void addRef() {
+    Fn.wgpuQueueAddRef(live());
+  }
+
+  @Override
+  public boolean isReleased() {
+    return address == 0L;
+  }
+
+  /**
+   * Returns the native handle of a wrapper that was created by this backend.
+   *
+   * @param o The object. It must not be null or released.
+   * @return The native handle.
+   * @throws IllegalArgumentException If the object belongs to another backend.
+   * @throws IllegalStateException If the object was released.
+   */
+  static long addr(GpuQueue o) {
+    if (o instanceof FfmGpuQueue f) {
+      long a = f.address;
+      if (a == 0L) {
+        throw new IllegalStateException("The GpuQueue was released");
+      }
+      return a;
+    }
+    if (o == null) {
+      throw new NullPointerException("queue");
+    }
+    throw new IllegalArgumentException("The GpuQueue was not created by the FFM backend");
+  }
+
+  /**
+   * Returns the native handle of a wrapper, or 0 for null.
+   *
+   * @param o The object, or null.
+   * @return The native handle, or 0.
+   */
+  static long addrOrNull(GpuQueue o) {
+    return o == null ? 0L : addr(o);
+  }
+
+  /**
+   * Checks that an object was created by this backend.
+   *
+   * @param o The object. It must not be null.
+   * @return The same object, as the backend type.
+   * @throws IllegalArgumentException If the object belongs to another backend.
+   */
+  static FfmGpuQueue cast(GpuQueue o) {
+    if (o instanceof FfmGpuQueue f) {
+      return f;
+    }
+    if (o == null) {
+      throw new NullPointerException("into");
+    }
+    throw new IllegalArgumentException("The GpuQueue was not created by the FFM backend");
+  }
+
+  /**
+   * Stores a new handle in this wrapper and releases the handle it held before.
+   *
+   * @param handle The new native handle.
+   */
+  void assign(long handle) {
+    long old = address;
+    address = handle;
+    if (old != 0L) {
+      Fn.wgpuQueueRelease(old);
+    }
+  }
+
+  private long live() {
+    long a = address;
+    if (a == 0L) {
+      throw new IllegalStateException("The GpuQueue was released");
+    }
+    return a;
+  }
+
+  /**
+   * Returns the native handle.
+   *
+   * @return The handle, or 0 if the wrapper is empty or released.
+   */
+  public long getAddress() {
+    return address;
+  }
+
+  /**
+   * Holds the method handles of the native functions this class calls.
+   *
+   * <p>The handles are created when this nested class loads, which is the first time a method needs one. Each wrapper
+   * has the raw types of the C function and is small enough for the JIT to inline.
+   */
+  private static final class Fn {
+
+    static final MethodHandle QUEUE_ON_SUBMITTED_WORK_DONE = Native.handle("wgpuQueueOnSubmittedWorkDone", FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, Native.CALLBACK_INFO));
+    static final MethodHandle QUEUE_SET_LABEL = Native.handle("wgpuQueueSetLabel", FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, Native.STRING_VIEW));
+    static final MethodHandle QUEUE_SUBMIT = Native.handle("wgpuQueueSubmit", FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG));
+    static final MethodHandle QUEUE_WRITE_BUFFER = Native.handle("wgpuQueueWriteBuffer", FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG));
+    static final MethodHandle QUEUE_WRITE_TEXTURE = Native.handle("wgpuQueueWriteTexture", FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG, ValueLayout.JAVA_LONG));
+    static final MethodHandle QUEUE_ADD_REF = Native.handle("wgpuQueueAddRef", FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG));
+    static final MethodHandle QUEUE_RELEASE = Native.handle("wgpuQueueRelease", FunctionDescriptor.ofVoid(ValueLayout.JAVA_LONG));
+
+    private Fn() {}
+
+    static long wgpuQueueOnSubmittedWorkDone(long a0, MemorySegment a1) {
+      try {
+        return (long) QUEUE_ON_SUBMITTED_WORK_DONE.invokeExact(a0, a1);
+      } catch (Throwable e) {
+        throw Native.fail(e);
+      }
+    }
+
+    static void wgpuQueueSetLabel(long a0, MemorySegment a1) {
+      try {
+        QUEUE_SET_LABEL.invokeExact(a0, a1);
+      } catch (Throwable e) {
+        throw Native.fail(e);
+      }
+    }
+
+    static void wgpuQueueSubmit(long a0, long a1, long a2) {
+      try {
+        QUEUE_SUBMIT.invokeExact(a0, a1, a2);
+      } catch (Throwable e) {
+        throw Native.fail(e);
+      }
+    }
+
+    static void wgpuQueueWriteBuffer(long a0, long a1, long a2, long a3, long a4) {
+      try {
+        QUEUE_WRITE_BUFFER.invokeExact(a0, a1, a2, a3, a4);
+      } catch (Throwable e) {
+        throw Native.fail(e);
+      }
+    }
+
+    static void wgpuQueueWriteTexture(long a0, long a1, long a2, long a3, long a4, long a5) {
+      try {
+        QUEUE_WRITE_TEXTURE.invokeExact(a0, a1, a2, a3, a4, a5);
+      } catch (Throwable e) {
+        throw Native.fail(e);
+      }
+    }
+
+    static void wgpuQueueAddRef(long a0) {
+      try {
+        QUEUE_ADD_REF.invokeExact(a0);
+      } catch (Throwable e) {
+        throw Native.fail(e);
+      }
+    }
+
+    static void wgpuQueueRelease(long a0) {
+      try {
+        QUEUE_RELEASE.invokeExact(a0);
+      } catch (Throwable e) {
+        throw Native.fail(e);
+      }
+    }
+  }
+}
