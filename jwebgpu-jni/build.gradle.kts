@@ -55,6 +55,21 @@ val generateGlue = generate("generateJWebGpuJniCSources", "jni-c", generatedGlue
 val webgpuInclude = providers.gradleProperty("jwebgpu.dawnInclude")
   .orElse(specDir.asFile.absolutePath)
 
+// The Dawn license texts that scripts/build_natives.sh writes next to each ABI's library are the same for every ABI.
+// One copy ships in the AAR as META-INF/jwebgpu/dawn-licenses.txt, so apps carry the notices the licenses require.
+val dawnLicensesDir = layout.buildDirectory.dir("generated/dawnLicenses")
+val copyDawnLicenses = tasks.register<Copy>("copyDawnLicenses") {
+  from(fileTree("src/main/jniLibs") { include("*/licenses.txt") })
+  eachFile { path = "META-INF/jwebgpu/dawn-licenses.txt" }
+  includeEmptyDirs = false
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+  into(dawnLicensesDir)
+}
+// AGP does not follow builtBy on resource folders, so its Java resource tasks depend on the copy directly.
+tasks.matching { it.name.startsWith("process") && it.name.endsWith("JavaRes") }.configureEach {
+  dependsOn(copyDawnLicenses)
+}
+
 android {
   namespace = "io.github.stringdotjar.jwebgpu.jni"
   compileSdk = 36
@@ -87,6 +102,13 @@ android {
   }
   sourceSets.getByName("main") {
     java.srcDir(files(generatedJava).builtBy(generateJava))
+    resources.srcDir(files(dawnLicensesDir).builtBy(copyDawnLicenses))
+  }
+  packaging {
+    jniLibs {
+      // licenses.txt sits next to each ABI's Dawn library; it ships once as a Java resource instead (see above).
+      excludes += "**/licenses.txt"
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_25

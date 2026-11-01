@@ -213,7 +213,8 @@ The script also accepts `fetch`, which only downloads the Dawn sources.
 Desktop libraries are copied to `jwebgpu-natives/<target>/src/main/resources/natives/<target>/` as `libwebgpu_dawn.so`,
 `webgpu_dawn.dll` or `libwebgpu_dawn.dylib`, which makes them the content of the `jwebgpu-natives-<target>` module. Publishing
 a natives module fails if its library is missing. Android libraries are copied to `jwebgpu-jni/src/main/jniLibs/<abi>/` as
-`libwebgpu_dawn.so`, with the C++ runtime linked statically so apps need no `libc++_shared.so`. Both locations are gitignored. The library is stripped, and it exports **only** the
+`libwebgpu_dawn.so`, with the C++ runtime linked statically so apps need no `libc++_shared.so`. Both locations are gitignored. Next to every library the script also writes `licenses.txt`, the full license texts
+of Dawn and everything compiled into it, which ships with the library (see `THIRD_PARTY_NOTICES.md`). The library is stripped, and it exports **only** the
 `wgpu*` functions from `webgpu.h`; the script checks this at the end and fails if anything else leaks out. On Linux it also
 links the C++ runtime statically, so the library needs nothing but glibc. The build machine's glibc sets the floor, so CI
 builds the Linux libraries inside the `manylinux_2_28` container (glibc 2.28), which makes them load on every mainstream

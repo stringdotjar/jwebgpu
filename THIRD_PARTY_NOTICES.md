@@ -44,6 +44,11 @@ components below. Take the full text from the matching file in the Dawn checkout
 
 ### Components inside the Dawn library
 
+Every Dawn library that jwebgpu ships carries the full license texts of the projects below. `scripts/build_natives.sh`
+writes them to `licenses.txt` next to the library: each `jwebgpu-natives-<target>` jar holds it at
+`natives/<target>/licenses.txt`, and the `jwebgpu-jni` AAR holds one copy at `META-INF/jwebgpu/dawn-licenses.txt`.
+Applications that redistribute these libraries should keep those files (or show their contents) with the application.
+
 These are the projects that the build linked into the library at the pinned commit (Linux x86_64 with the Vulkan and
 Null backends; the Windows and macOS builds add the platform items marked below).
 

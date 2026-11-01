@@ -240,6 +240,42 @@ verify_linux_surfaces() {
   fi
 }
 
+# Writes licenses.txt next to a finished library: the full license text of Dawn and of every project compiled into
+# it, which their licenses (BSD 3-Clause, Apache 2.0 and MIT) require to travel with the binary. The C++ runtimes
+# linked in statically (GCC's runtime library exception, LLVM's exception for libc++, and Microsoft's runtime terms)
+# need no notice.
+write_licenses() {
+  local os="$1" out="$2" entry name file
+  local entries=(
+    "Dawn and Tint|LICENSE"
+    "Abseil|third_party/abseil-cpp/LICENSE"
+    "SPIRV-Tools|third_party/spirv-tools/src/LICENSE"
+    "SPIRV-Headers|third_party/spirv-headers/src/LICENSE"
+    "Vulkan-Headers|third_party/vulkan-headers/src/LICENSE.md"
+    "Vulkan-Utility-Libraries|third_party/vulkan-utility-libraries/src/LICENSE.md"
+    "webgpu-headers|third_party/webgpu-headers/src/LICENSE"
+    "RenderDoc (renderdoc_app.h)|third_party/renderdoc/LICENSE.md"
+  )
+  if [ "${os}" = "windows" ]; then
+    entries+=("DirectX-Headers|third_party/directx-headers/src/LICENSE")
+  fi
+  {
+    echo "This library is Dawn (https://dawn.googlesource.com/dawn) at commit ${DAWN_COMMIT}, built for jwebgpu."
+    echo "It contains the projects below. Their license texts follow, as their licenses require."
+    for entry in "${entries[@]}"; do
+      name="${entry%%|*}"
+      file="${SRC_DIR}/${entry#*|}"
+      [ -f "${file}" ] || die "License file not found: ${file}"
+      echo
+      echo "================================================================================"
+      echo "${name}"
+      echo "================================================================================"
+      echo
+      cat "${file}"
+    done
+  } > "${out}"
+}
+
 build() {
   local os arch cmake_arch
   case "${TARGET}" in
@@ -407,6 +443,7 @@ build() {
   local out_dir="${JWEBGPU_OUT_DIR:-${default_out}}"
   mkdir -p "${out_dir}"
   cp -f "${built}" "${out_dir}/${lib_name}"
+  write_licenses "${os}" "${out_dir}/licenses.txt"
   log "Done: ${out_dir}/${lib_name} ($(wc -c < "${out_dir}/${lib_name}") bytes)"
 }
 
