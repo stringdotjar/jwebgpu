@@ -111,7 +111,7 @@ class ApiEmitterGoldenTest {
 
   @Test
   void bindGroupSettersHaveAnOverloadWithoutDynamicOffsets() {
-    for (String type : new String[] {"GpuRenderPassEncoder", "GpuComputePassEncoder", "GpuRenderBundleEncoder"}) {
+    for (String type : new String[] { "GpuRenderPassEncoder", "GpuComputePassEncoder", "GpuRenderBundleEncoder" }) {
       String text = source(type);
       assertTrue(text.contains("public void setBindGroup(int groupIndex, @Nullable GpuBindGroup group) {\n"
           + "    setBindGroup(groupIndex, group, EMPTY_INTS, 0);\n  }"), type);

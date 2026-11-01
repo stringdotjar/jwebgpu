@@ -406,7 +406,8 @@ final class FfmMethods {
           String api = FfmNames.type(w, Names.type(t.name()));
           String st = FfmNames.struct(t.name());
           jp.add(api + " " + n);
-          args.add(m.nullable() ? "(" + n + " == null ? 0L : " + st + ".put(s, " + n + "))" : st + ".put(s, " + n + ")");
+          args.add(
+              m.nullable() ? "(" + n + " == null ? 0L : " + st + ".put(s, " + n + "))" : st + ".put(s, " + n + ")");
         }
       }
       case ENUM -> {

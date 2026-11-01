@@ -6,7 +6,6 @@ import io.github.stringdotjar.jwebgpu.generator.model.CType;
 import io.github.stringdotjar.jwebgpu.generator.model.Callback;
 import io.github.stringdotjar.jwebgpu.generator.model.CallbackStyle;
 import io.github.stringdotjar.jwebgpu.generator.model.Constant;
-import io.github.stringdotjar.jwebgpu.generator.model.ConstantKind;
 import io.github.stringdotjar.jwebgpu.generator.model.EnumType;
 import io.github.stringdotjar.jwebgpu.generator.model.EnumValue;
 import io.github.stringdotjar.jwebgpu.generator.model.InitValue;
@@ -214,13 +213,15 @@ public final class ApiChecksEmitter {
       }
       case ENUM_ZERO, NULL_POINTER, STRING_VIEW_INIT, CALLBACK_INFO_INIT ->
         check = f + (type.equals("long") ? " == 0L" : " == null");
-      case BITFLAG -> check = f + " == " + Names.type(t.name()) + "." + Names.constant(bitflagValue(t.name(), init.ref())
-          .specName());
+      case BITFLAG ->
+        check = f + " == " + Names.type(t.name()) + "." + Names.constant(bitflagValue(t.name(), init.ref())
+            .specName());
       case CONSTANT -> {
         Constant c = spec.constant(init.ref());
         check = switch (c.kind()) {
           case NAN -> "Float.isNaN(" + f + ")";
-          case UINT32 -> type.equals("long") ? f + " == " + (c.value() & 0xFFFFFFFFL) + "L" : f + " == " + (int) c.value();
+          case UINT32 ->
+            type.equals("long") ? f + " == " + (c.value() & 0xFFFFFFFFL) + "L" : f + " == " + (int) c.value();
           default -> f + " == " + c.value() + "L";
         };
       }

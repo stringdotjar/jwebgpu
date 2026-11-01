@@ -213,7 +213,7 @@ class TriangleTest {
     extent.depthOrArrayLayers = 1;
     encoder.copyTextureToBuffer(src, dst, extent);
     GpuCommandBuffer commands = encoder.finish(null);
-    queue.submit(new GpuCommandBuffer[] {commands}, 1);
+    queue.submit(new GpuCommandBuffer[] { commands }, 1);
 
     GpuMapAsyncStatus[] status = new GpuMapAsyncStatus[1];
     boolean[] done = new boolean[1];

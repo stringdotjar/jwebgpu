@@ -191,7 +191,7 @@ class MarshalTest {
     wgsl.code = "@fragment fn fs() -> @location(0) vec4f { return vec4f(1.0); } // ü";
     GpuShaderSourceSPIRV spirv = new GpuShaderSourceSPIRV();
     spirv.codeSize = 3;
-    spirv.code = new int[] {0x07230203, 5, 6};
+    spirv.code = new int[] { 0x07230203, 5, 6 };
     wgsl.next = spirv;
     GpuShaderModuleDescriptor d = new GpuShaderModuleDescriptor();
     d.label = "shader";
@@ -217,8 +217,8 @@ class MarshalTest {
   @Test
   void labelsAreEncodedAsUtf8WithoutAllocation() {
     Scratch s = Scratch.begin();
-    String[] labels = {"", "plain", "café", "世界", "pile of 💩 emoji", "lone \uD800 high", "lone \uDC00 low"};
-    String[] expected = {"", "plain", "café", "世界", "pile of 💩 emoji", "lone ? high", "lone ? low"};
+    String[] labels = { "", "plain", "café", "世界", "pile of 💩 emoji", "lone \uD800 high", "lone \uDC00 low" };
+    String[] expected = { "", "plain", "café", "世界", "pile of 💩 emoji", "lone ? high", "lone ? low" };
     long view = s.alloc(16);
     for (int i = 0; i < labels.length; i++) {
       s.putView(view, labels[i]);
@@ -324,10 +324,10 @@ class MarshalTest {
     assertEquals(0x55L, view.getAddress());
     GpuTextureView foreign = new GpuTextureView() {
       @Override
-      public void release() { }
+      public void release() {}
 
       @Override
-      public void addRef() { }
+      public void addRef() {}
 
       @Override
       public boolean isReleased() {
@@ -335,7 +335,7 @@ class MarshalTest {
       }
 
       @Override
-      public void setLabel(String label) { }
+      public void setLabel(String label) {}
     };
     try {
       FfmGpuTextureView.addr(foreign);

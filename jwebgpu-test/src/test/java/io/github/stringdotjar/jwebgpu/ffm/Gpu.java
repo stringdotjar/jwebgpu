@@ -94,7 +94,8 @@ final class Gpu {
     GpuDeviceDescriptor descriptor = new GpuDeviceDescriptor();
     descriptor.label = "test device";
     descriptor.deviceLostMode = GpuCallbackMode.ALLOW_SPONTANEOUS;
-    descriptor.deviceLostCallback = (device, reason, msg) -> { };
+    descriptor.deviceLostCallback = (device, reason, msg) -> {
+    };
     descriptor.uncapturedErrorCallback = (device, type, msg) -> {
       synchronized (ERRORS) {
         ERRORS.append(type).append(": ").append(msg).append('\n');

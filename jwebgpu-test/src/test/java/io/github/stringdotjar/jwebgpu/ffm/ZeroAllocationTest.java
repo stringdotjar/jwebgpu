@@ -175,7 +175,7 @@ class ZeroAllocationTest {
     passEncoder.end();
     GpuCommandBuffer commands = encoder.finish(null);
     GpuCommandBuffer[] submit = new GpuCommandBuffer[1];
-    float[] data = {0f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f};
+    float[] data = { 0f, 0.5f, -0.5f, -0.5f, 0.5f, -0.5f };
     commands.release();
     passEncoder.release();
     encoder.release();
