@@ -34,6 +34,7 @@ import io.github.stringdotjar.jwebgpu.generator.model.EnumType;
 import io.github.stringdotjar.jwebgpu.generator.model.EnumValue;
 import io.github.stringdotjar.jwebgpu.generator.model.InitValue;
 import io.github.stringdotjar.jwebgpu.generator.model.Member;
+import io.github.stringdotjar.jwebgpu.generator.model.MemberRole;
 import io.github.stringdotjar.jwebgpu.generator.model.Spec;
 import io.github.stringdotjar.jwebgpu.generator.model.Struct;
 import io.github.stringdotjar.jwebgpu.generator.model.StructKind;
@@ -311,6 +312,9 @@ final class StructEmitter {
       String type = Names.type(t.name());
       plan.fields.add(new Field(type, name, 1, true, "new " + type + "()", false, doc));
       plan.resets.add(name + ".reset();");
+      if (m.init() != null && m.init().kind() == InitValue.Kind.STRUCT_ZERO) {
+        zero(plan, name, spec.struct(t.name()));
+      }
       return;
     }
     if (t.kind() == TypeKind.STRUCT && t.name().equals(Types.STRING_VIEW)) {
@@ -344,6 +348,44 @@ final class StructEmitter {
     }
     plan.fields.add(new Field(type, name, tier(type), false, null, nullable && !Types.primitive(type), doc));
     plan.resets.add(name + " = " + initExpr(m, init, type) + ";");
+  }
+
+  /**
+   * Writes the resets that turn a nested struct into the all-zero struct that the C header's {@code INIT} macro
+   * asks for.
+   *
+   * <p>Most nested structs start with the defaults of their own {@code INIT} macro, but a few members are documented
+   * to start as plain zero. The binding layouts of a bind group layout entry are the example: their own defaults say
+   * "undefined", which means "use the default kind of binding", while zero means "not used", and an entry must have
+   * exactly one used binding layout.
+   */
+  private void zero(Plan plan, String name, Struct nested) {
+    for (Member f : nested.fields()) {
+      if (f.role() != MemberRole.VALUE) {
+        continue;
+      }
+      String field = name + "." + Names.ident(f.name());
+      CType ft = f.type();
+      switch (ft.kind()) {
+        case ENUM -> {
+          EnumType e = spec.enumType(ft.name());
+          String constant = "null";
+          for (EnumValue v : e.values()) {
+            if (v.value() == 0) {
+              constant = Names.type(ft.name()) + "." + Names.constant(v.specName());
+            }
+          }
+          plan.resets.add(field + " = " + constant + ";");
+        }
+        case BOOL -> plan.resets.add(field + " = false;");
+        case UINT64, USIZE, BITFLAG -> plan.resets.add(field + " = 0L;");
+        case UINT32, INT32, UINT16, INT16 -> plan.resets.add(field + " = 0;");
+        case FLOAT32 -> plan.resets.add(field + " = 0.0f;");
+        case FLOAT64 -> plan.resets.add(field + " = 0.0;");
+        default -> {
+        }
+      }
+    }
   }
 
   private static int tier(String type) {

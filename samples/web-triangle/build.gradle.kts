@@ -18,7 +18,7 @@ dependencies {
 
 teavm {
   all {
-    mainClass = "io.github.stringdotjar.jwebgpu.samples.web.WebTriangle"
+    mainClass = "io.github.stringdotjar.jwebgpu.samples.web.WebSamples"
   }
   js {
     addedToWebApp = true

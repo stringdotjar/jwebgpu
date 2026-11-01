@@ -206,4 +206,17 @@ class GeneratedApiTest {
     spirv.codeSize = 2;
     assertArrayEquals(new int[] { 0x07230203, 1 }, spirv.code);
   }
+
+  @Test
+  void bindingLayoutsOfALayoutEntryStartAsNotUsed() {
+    GpuBindGroupLayoutEntry e = new GpuBindGroupLayoutEntry();
+    assertSame(GpuBufferBindingType.BINDING_NOT_USED, e.buffer.type);
+    assertSame(GpuSamplerBindingType.BINDING_NOT_USED, e.sampler.type);
+    assertSame(GpuTextureSampleType.BINDING_NOT_USED, e.texture.sampleType);
+    assertSame(GpuStorageTextureAccess.BINDING_NOT_USED, e.storageTexture.access);
+    assertSame(GpuBufferBindingType.UNDEFINED, new GpuBufferBindingLayout().type, "standalone layouts keep their own defaults");
+    e.buffer.type = GpuBufferBindingType.UNIFORM;
+    e.reset();
+    assertSame(GpuBufferBindingType.BINDING_NOT_USED, e.buffer.type);
+  }
 }

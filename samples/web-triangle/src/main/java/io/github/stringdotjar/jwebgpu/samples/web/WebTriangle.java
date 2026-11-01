@@ -23,10 +23,7 @@
  */
 package io.github.stringdotjar.jwebgpu.samples.web;
 
-import org.teavm.jso.JSBody;
-
 import io.github.stringdotjar.jwebgpu.GpuAdapter;
-import io.github.stringdotjar.jwebgpu.GpuAdapterInfo;
 import io.github.stringdotjar.jwebgpu.GpuBuffer;
 import io.github.stringdotjar.jwebgpu.GpuBufferDescriptor;
 import io.github.stringdotjar.jwebgpu.GpuBufferUsage;
@@ -37,7 +34,6 @@ import io.github.stringdotjar.jwebgpu.GpuCommandBuffer;
 import io.github.stringdotjar.jwebgpu.GpuCommandEncoder;
 import io.github.stringdotjar.jwebgpu.GpuConstants;
 import io.github.stringdotjar.jwebgpu.GpuDevice;
-import io.github.stringdotjar.jwebgpu.GpuDeviceDescriptor;
 import io.github.stringdotjar.jwebgpu.GpuExtent3D;
 import io.github.stringdotjar.jwebgpu.GpuFragmentState;
 import io.github.stringdotjar.jwebgpu.GpuIndexFormat;
@@ -73,8 +69,6 @@ import io.github.stringdotjar.jwebgpu.GpuTextureView;
 import io.github.stringdotjar.jwebgpu.GpuVertexAttribute;
 import io.github.stringdotjar.jwebgpu.GpuVertexBufferLayout;
 import io.github.stringdotjar.jwebgpu.GpuVertexFormat;
-import io.github.stringdotjar.jwebgpu.JWebGpu;
-import io.github.stringdotjar.jwebgpu.teavm.JWebGpuTeaVm;
 import io.github.stringdotjar.jwebgpu.teavm.TeaVmSurfaceSourceCanvas;
 
 import java.nio.ByteBuffer;
@@ -91,9 +85,8 @@ import java.nio.ByteOrder;
  *
  * <p>The browser cannot block, so every step that waits for the GPU continues in a callback.
  *
- * <p>The same code translates to JavaScript and to WasmGC: nothing in it knows which one it is.
  */
-public final class WebTriangle {
+final class WebTriangle {
 
   private static final int SIZE = 64;
   private static final int ROW_BYTES = 256;
@@ -115,58 +108,27 @@ public final class WebTriangle {
   private static final float[] CORNERS = { 0.0f, 0.8f, -0.8f, -0.8f, 0.8f, -0.8f };
 
   private final byte[] pixels = new byte[(int) READBACK_BYTES];
-  private final GpuAdapterInfo info = new GpuAdapterInfo();
+  private final Context ctx;
+  private final Report report;
+  private final GpuDevice device;
+  private final GpuQueue queue;
+  private final GpuInstance instance;
+  private final GpuAdapter adapter;
 
-  private GpuInstance instance;
-  private GpuAdapter adapter;
-  private GpuDevice device;
-  private GpuQueue queue;
-  private int failures;
+  private Runnable done;
 
-  private WebTriangle() {}
-
-  @JSBody(params = "text", script = "console.log(text);")
-  private static native void log(String text);
-
-  /**
-   * Starts the sample.
-   *
-   * @param args Not used.
-   */
-  public static void main(String[] args) {
-    new WebTriangle().start();
+  WebTriangle(Context ctx) {
+    this.ctx = ctx;
+    this.report = ctx.report;
+    this.device = ctx.device;
+    this.queue = ctx.queue;
+    this.instance = ctx.instance;
+    this.adapter = ctx.adapter;
   }
 
-  private void start() {
-    JWebGpuTeaVm.install();
-    instance = JWebGpu.createInstance();
-    instance.requestAdapter(null, GpuCallbackMode.ALLOW_SPONTANEOUS, (status, result, message) -> {
-      if (result == null) {
-        fail("No adapter (" + status + "): " + message);
-        finish();
-        return;
-      }
-      adapter = result;
-      adapter.getInfo(info);
-      log("Adapter: " + info.vendor + " / " + info.architecture + " (" + info.backendType + ")");
-      requestDevice();
-    });
-  }
-
-  private void requestDevice() {
-    GpuDeviceDescriptor descriptor = new GpuDeviceDescriptor();
-    descriptor.uncapturedErrorCallback = (d, type, message) -> fail("WebGPU error (" + type + "): " + message);
-    descriptor.deviceLostCallback = (d, reason, message) -> log("Device lost (" + reason + "): " + message);
-    adapter.requestDevice(descriptor, GpuCallbackMode.ALLOW_SPONTANEOUS, (status, result, message) -> {
-      if (result == null) {
-        fail("No device (" + status + "): " + message);
-        finish();
-        return;
-      }
-      device = result;
-      queue = device.getQueue();
-      drawOffscreen();
-    });
+  void run(Runnable done) {
+    this.done = done;
+    drawOffscreen();
   }
 
   private void drawOffscreen() {
@@ -211,7 +173,7 @@ public final class WebTriangle {
     GpuSurfaceCapabilities capabilities = new GpuSurfaceCapabilities(2, 1, 2);
     surface.getCapabilities(adapter, capabilities);
     GpuTextureFormat format = capabilities.formats[0];
-    log("Canvas format: " + format);
+    Report.log("Canvas format: " + format);
 
     GpuSurfaceConfiguration configuration = new GpuSurfaceConfiguration();
     configuration.device = device;
@@ -258,7 +220,7 @@ public final class WebTriangle {
       current.texture.release();
       surface.unconfigure();
       surface.release();
-      finish();
+      done.run();
     });
   }
 
@@ -335,12 +297,12 @@ public final class WebTriangle {
   private void read(GpuBuffer buffer, String name, boolean bgra, Runnable next) {
     buffer.mapAsync(GpuMapMode.READ, 0L, READBACK_BYTES, GpuCallbackMode.ALLOW_SPONTANEOUS, (status, message) -> {
       if (status != GpuMapAsyncStatus.SUCCESS) {
-        fail("Cannot map the " + name + " readback buffer (" + status + "): " + message);
+        report.fail("Cannot map the " + name + " readback buffer (" + status + "): " + message);
       } else {
         GpuStatus read = buffer.readMappedRange(0L, pixels, 0, pixels.length);
         buffer.unmap();
         if (read != GpuStatus.SUCCESS) {
-          fail("Cannot read the " + name + " pixels (" + read + ")");
+          report.fail("Cannot read the " + name + " pixels (" + read + ")");
         } else {
           report(name, bgra);
         }
@@ -352,13 +314,10 @@ public final class WebTriangle {
   private void report(String name, boolean bgra) {
     String center = pixel(SIZE / 2, SIZE / 2, bgra);
     String corner = pixel(1, 1, bgra);
-    log("PIXEL " + name + " center (r,g,b,a) = " + center);
-    log("PIXEL " + name + " corner (r,g,b,a) = " + corner);
-    boolean ok = center.equals("255,0,0,255") && corner.equals("0,0,255,255");
-    log("RESULT " + name + " " + (ok ? "PASS" : "FAIL"));
-    if (!ok) {
-      failures++;
-    }
+    Report.log("PIXEL " + name + " center (r,g,b,a) = " + center);
+    Report.log("PIXEL " + name + " corner (r,g,b,a) = " + corner);
+    report.check(name + " triangle", center.equals("255,0,0,255") && corner.equals("0,0,255,255"),
+        "center " + center + ", corner " + corner);
   }
 
   private String pixel(int x, int y, boolean bgra) {
@@ -368,15 +327,5 @@ public final class WebTriangle {
     int b = pixels[at + (bgra ? 0 : 2)] & 0xFF;
     int a = pixels[at + 3] & 0xFF;
     return r + "," + g + "," + b + "," + a;
-  }
-
-  private void fail(String message) {
-    failures++;
-    log("ERROR " + message);
-  }
-
-  private void finish() {
-    log(failures == 0 ? "RESULT all PASS" : "RESULT " + failures + " FAILED");
-    log("JWEBGPU_DONE");
   }
 }
