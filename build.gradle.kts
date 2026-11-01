@@ -33,6 +33,13 @@ fun gitVersion(): String = try {
 
 eclipse.project.name = "jwebgpu-parent"
 
+// The modules that carry the desktop Dawn libraries have no build file of their own (see settings.gradle.kts).
+for (sub in subprojects) {
+  if (sub.name.startsWith("jwebgpu-natives-")) {
+    sub.pluginManager.apply("jwebgpu.natives-jar")
+  }
+}
+
 idea {
   module {
     outputDir = file("build/classes/java/main")

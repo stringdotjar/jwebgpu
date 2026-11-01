@@ -15,7 +15,7 @@ hs_err_pid*
 .attach_pid*
 
 ## Native libraries (built by CI or scripts/build_natives.sh, never committed):
-/jwebgpu-ffm/src/main/resources/natives/
+/jwebgpu-natives/*/src/main/resources/natives/
 
 ## Android:
 /android/libs/

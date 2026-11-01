@@ -66,6 +66,16 @@ include(
   "samples:web-triangle"
 )
 
+// One module per desktop target holds that target's Dawn library, so an application only bundles the platforms it
+// ships to. The modules need no build file of their own; the convention plugin sets them up.
+val nativeTargets = listOf(
+  "linux-x86_64", "linux-aarch64", "windows-x86_64", "windows-aarch64", "macos-x86_64", "macos-aarch64"
+)
+for (target in nativeTargets) {
+  include("jwebgpu-natives-$target")
+  project(":jwebgpu-natives-$target").projectDir = file("jwebgpu-natives/$target")
+}
+
 if (includeAndroid) {
   include("jwebgpu-jni")
   include("samples:android-triangle")

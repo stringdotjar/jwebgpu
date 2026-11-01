@@ -1,0 +1,57 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.JavaLibrary
+import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
+
+// Convention for the jwebgpu-natives-<target> modules. Each one is a jar that holds nothing but the Dawn library of one
+// desktop target at natives/<target>/<library name>, so an application only bundles the platforms it ships to. The
+// library is not committed: CI builds it and scripts/build_natives.sh copies it into src/main/resources.
+plugins {
+  id("jwebgpu.java-library")
+}
+
+val target = project.name.removePrefix("jwebgpu-natives-")
+val library = JWebGpuNatives.libraryFile(rootProject.projectDir, target)
+
+description = "The Dawn native library of jwebgpu-ffm for $target."
+
+// A natives jar without its library is useless, so building one only warns (the other modules do not need it), while
+// publishing one fails so that a release can never ship an empty jar.
+tasks.named("processResources") {
+  doFirst {
+    if (!library.isFile) {
+      logger.quiet(
+        "WARNING: ${project.name} is empty because ${library.relativeTo(rootProject.projectDir)} does not exist. " +
+          "Build it with scripts/build_natives.sh $target, or download the dawn-natives-all artifact of the " +
+          "Build Natives workflow."
+      )
+    }
+  }
+}
+
+tasks.withType<AbstractPublishToMaven>().configureEach {
+  doFirst {
+    if (!library.isFile) {
+      throw GradleException(
+        "Refusing to publish ${project.name}: ${library.relativeTo(rootProject.projectDir)} does not exist. " +
+          "Build it with scripts/build_natives.sh $target first."
+      )
+    }
+  }
+}
+
+// There is no Java code, so the Javadoc jar is empty. The sources jar must not carry the library, so it holds the
+// license texts that belong to the binary instead.
+mavenPublishing {
+  configure(JavaLibrary(JavadocJar.Empty(), sourcesJar = true))
+
+  pom {
+    name = project.name
+    description = "The Dawn native library for $target, used by jwebgpu-ffm on the desktop."
+  }
+}
+
+tasks.withType<Jar>().matching { it.name == "sourcesJar" }.configureEach {
+  exclude("natives/**")
+  from(rootProject.layout.projectDirectory.file("LICENSE"))
+  from(rootProject.layout.projectDirectory.file("THIRD_PARTY_NOTICES.md"))
+}
