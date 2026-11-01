@@ -233,3 +233,48 @@ jobs:
         if: matrix.platform == 'android'
         run: ./gradlew -PincludeAndroid=true :jwebgpu-api:assemble :jwebgpu-jni:assembleRelease --no-daemon
         shell: bash
+
+  native-image:
+    name: Native image (GraalVM, linux)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up GraalVM for JDK 25
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: graalvm
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Download the Dawn library
+        # The native image embeds the Dawn library from the natives jar, and the library is never committed. Use the one
+        # the latest successful Build Natives run produced.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id="$(gh run list --workflow natives.yml --branch master --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          gh run download "${run_id}" --name dawn-linux-x86_64 --dir jwebgpu-natives/linux-x86_64/src/main/resources/natives/linux-x86_64
+          ls -l jwebgpu-natives/linux-x86_64/src/main/resources/natives/linux-x86_64
+        shell: bash
+
+      - name: Build the sample as a native image
+        # The sample has no native image configuration of its own: the jwebgpu jars ship all of it.
+        run: ./gradlew :samples:triangle-offscreen:nativeCompile --no-daemon --warning-mode all
+        shell: bash
+
+      - name: Run the native image on Dawn's Null backend
+        # The runner has no graphics card, so the Null backend runs every call without drawing anything.
+        run: |
+          out="$(samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen null)"
+          echo "${out}"
+          echo "${out}" | grep -q "(NULL)"
+        shell: bash
