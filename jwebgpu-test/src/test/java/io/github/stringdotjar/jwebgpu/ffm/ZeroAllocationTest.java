@@ -215,6 +215,46 @@ class ZeroAllocationTest {
   }
 
   @Test
+  void uploadingFromDirectAndHeapBuffersAllocatesNothing() {
+    Gpu.require();
+    com.sun.management.ThreadMXBean bean = bean();
+    GpuInstance instance = Gpu.instance();
+    GpuAdapter adapter = Gpu.adapter(instance, GpuBackendType.NULL);
+    GpuDevice device = Gpu.device(instance, adapter);
+    GpuQueue queue = device.getQueue();
+    GpuBufferDescriptor bd = new GpuBufferDescriptor();
+    bd.usage = GpuBufferUsage.VERTEX | GpuBufferUsage.COPY_DST;
+    bd.size = 1024;
+    GpuBuffer buffer = device.createBuffer(bd);
+    java.nio.ByteBuffer direct = java.nio.ByteBuffer.allocateDirect(256);
+    java.nio.ByteBuffer heap = java.nio.ByteBuffer.allocate(256);
+    long thread = Thread.currentThread().threadId();
+    for (int i = 0; i < WARMUP; i++) {
+      queue.writeBuffer(buffer, 0, direct);
+      queue.writeBuffer(buffer, 0, heap);
+    }
+    long baselineStart = bean.getThreadAllocatedBytes(thread);
+    long baseline = bean.getThreadAllocatedBytes(thread) - baselineStart;
+    long before = bean.getThreadAllocatedBytes(thread);
+    for (int i = 0; i < FRAMES; i++) {
+      queue.writeBuffer(buffer, 0, direct);
+    }
+    long afterDirect = bean.getThreadAllocatedBytes(thread);
+    for (int i = 0; i < FRAMES; i++) {
+      queue.writeBuffer(buffer, 0, heap);
+    }
+    long afterHeap = bean.getThreadAllocatedBytes(thread);
+    assertEquals(baseline, afterDirect - before, "a direct ByteBuffer upload must not allocate");
+    assertEquals(baseline, afterHeap - afterDirect, "a heap ByteBuffer upload must not allocate");
+    assertEquals("", Gpu.errors());
+    buffer.release();
+    queue.release();
+    device.release();
+    adapter.release();
+    instance.release();
+  }
+
+  @Test
   void theMeasurementNoticesRealAllocations() {
     com.sun.management.ThreadMXBean bean = bean();
     long thread = Thread.currentThread().threadId();
