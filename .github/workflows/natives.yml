@@ -1,0 +1,117 @@
+name: Build Natives
+
+# Builds the Dawn shared library for every desktop platform. Nothing is committed: each library is
+# uploaded as a workflow artifact, so release jobs (and people) can download exactly what CI built.
+# The Dawn revision comes from scripts/dawn.version.
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'scripts/dawn.version'
+      - 'scripts/build_natives.sh'
+      - 'scripts/natives/**'
+      - '.github/workflows/natives.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dawn:
+    name: Dawn (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    # A cold Dawn build takes about 25 minutes on 8 cores and much longer on 2 to 4 cores.
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            os: ubuntu-24.04
+            cache_dir: ~/.cache/jwebgpu/dawn
+          - target: linux-aarch64
+            os: ubuntu-24.04-arm
+            cache_dir: ~/.cache/jwebgpu/dawn
+          - target: windows-x86_64
+            os: windows-latest
+            msvc_arch: x64
+            # Windows paths are limited to 260 characters and Dawn trees are deep, so keep the root short.
+            cache_dir: C:/jwdawn
+          - target: windows-aarch64
+            os: windows-11-arm
+            msvc_arch: arm64
+            cache_dir: C:/jwdawn
+          - target: macos-x86_64
+            os: macos-15-intel
+            cache_dir: ~/.cache/jwebgpu/dawn
+          - target: macos-aarch64
+            os: macos-latest
+            cache_dir: ~/.cache/jwebgpu/dawn
+    env:
+      JWEBGPU_DAWN_CACHE: ${{ matrix.cache_dir }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ninja
+        run: python -m pip install ninja
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        # Dawn loads X11 and Wayland at run time, but it needs the X11 headers to compile its surface support.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libx11-dev libx11-xcb-dev libxcb1-dev
+
+      - name: Set up the MSVC toolchain
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
+
+      - name: Prepare Windows git and PATH
+        if: runner.os == 'Windows'
+        run: |
+          git config --global core.longpaths true
+          # Git Bash ships a GNU link.exe that would shadow the MSVC linker.
+          rm -f /usr/bin/link.exe /usr/bin/link
+
+      - name: Restore the Dawn sources cache
+        id: sources
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ matrix.cache_dir }}/src
+          key: dawn-src-${{ runner.os }}-${{ hashFiles('scripts/dawn.version') }}
+
+      - name: Fetch the Dawn sources
+        run: ./scripts/build_natives.sh fetch
+
+      - name: Save the Dawn sources cache
+        if: steps.sources.outputs.cache-hit != 'true'
+        # Saved before the build starts, so a build failure does not throw away the long download.
+        # Only sources are cached: a Dawn build tree is several GB per target, which would overflow
+        # the 10 GB repository cache quota, and a Dawn bump changes nearly every object file anyway.
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ matrix.cache_dir }}/src
+          key: ${{ steps.sources.outputs.cache-primary-key }}
+
+      - name: Build Dawn
+        run: ./scripts/build_natives.sh ${{ matrix.target }}
+
+      - name: Upload the library
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawn-${{ matrix.target }}
+          path: jwebgpu-ffm/src/main/resources/natives/${{ matrix.target }}/*
+          if-no-files-found: error
+          retention-days: 30
