@@ -61,7 +61,8 @@ include(
   "jwebgpu-api",
   "jwebgpu-ffm",
   "jwebgpu-teavm",
-  "jwebgpu-test"
+  "jwebgpu-test",
+  "samples:triangle-offscreen"
 )
 
 if (includeAndroid) {
