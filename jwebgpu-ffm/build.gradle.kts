@@ -10,6 +10,10 @@ dependencies {
 
 jwebgpuGenerated {
   emit("ffm")
+
+  // The GraalVM native image metadata: every foreign call and callback, so a native image of an application needs no
+  // configuration of its own.
+  emitResources("graal")
 }
 
 tasks.jar {

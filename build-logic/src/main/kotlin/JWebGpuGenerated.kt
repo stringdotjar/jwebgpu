@@ -54,6 +54,25 @@ open class JWebGpuGenerated(private val project: Project, private val generator:
     return register(kind, outDir)
   }
 
+  /**
+   * Generates resource files with the generator and adds them to a source set's resources, so they land in the jar.
+   *
+   * @param kind The value of the generator's `--emit` option (`graal`).
+   * @param sourceSet The name of the source set that receives the resources.
+   */
+  fun emitResources(kind: String, sourceSet: String = "main") {
+    val outDir = project.layout.buildDirectory.dir("generated/sources/jwebgpu/$sourceSet/resources")
+    val task = register(kind, outDir)
+
+    project.extensions.getByType(SourceSetContainer::class.java).named(sourceSet) {
+      this.resources.srcDir(task)
+    }
+
+    val suffix = sourceSet.replaceFirstChar(Char::uppercase)
+    val names = if (sourceSet == "main") listOf("processResources", "sourcesJar") else listOf("process${suffix}Resources")
+    project.tasks.matching { it.name in names }.configureEach { dependsOn(task) }
+  }
+
   private fun register(kind: String, outDir: Provider<Directory>): TaskProvider<JavaExec> {
     val specDir = project.rootProject.layout.projectDirectory.dir("spec")
     val java = project.extensions.getByType(JavaPluginExtension::class.java)
