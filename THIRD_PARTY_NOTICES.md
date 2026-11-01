@@ -15,6 +15,18 @@ material that is vendored into this repository or that jwebgpu is built on.
 
 The vendored files keep their original copyright and license headers.
 
+## WebGPU specification (WebIDL)
+
+- **Files:** `spec/webgpu.idl` and `spec/LICENSE-gpuweb`
+- **Source:** <https://github.com/gpuweb/gpuweb>, pinned to commit `4e829b310ba7381034b93b974eb1a6aabfb464f7`
+  (see [spec/SPEC_VERSION.md](spec/SPEC_VERSION.md)). The IDL is cut out of `spec/index.bs` of that commit.
+- **License:** W3C Software and Document License, and the GPU for the Web 3-Clause BSD License. The full text is in
+  [spec/LICENSE-gpuweb](spec/LICENSE-gpuweb).
+- **Use:** The generator reads `webgpu.idl` to produce the web backend, which wraps the browser's own WebGPU objects.
+  The browser itself is not part of this repository.
+
+The vendored file keeps the copyright notice of the specification in its header.
+
 ## Dawn
 
 - **Source:** <https://dawn.googlesource.com/dawn>, pinned to the commit in [scripts/dawn.version](scripts/dawn.version)

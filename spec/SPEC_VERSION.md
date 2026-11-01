@@ -12,8 +12,8 @@ same bindings no matter when it runs.
 | `schema.json` | The JSON Schema that describes the structure of the specification. Kept as a reference for the shape of `webgpu.json`. |
 | `webgpu.h` | The C header that upstream generates from the same specification. It is not read by the generator. Tests parse it as an independent reference that the generator's model must match exactly. |
 | `LICENSE-webgpu-headers` | The BSD 3-Clause license of the files above. See also `THIRD_PARTY_NOTICES.md` in the repository root. |
-
-The browser WebIDL for the TeaVM layer is not vendored yet.
+| `webgpu.idl` | The browser WebIDL of the WebGPU specification (interfaces, dictionaries, enums and the flag namespaces). The generator merges it with `webgpu.json` to produce the web backend, because the browser API names things differently (string enums, dictionaries, promises). |
+| `LICENSE-gpuweb` | The licenses of the WebGPU specification repository (W3C Software and Document License, and the GPU for the Web 3-Clause BSD License). |
 
 ## Pinned versions
 
@@ -35,13 +35,29 @@ the specification: callback info structs, futures, `AddRef` and `Release` method
 numbering and more. The generator's resolver mirrors those rules. When updating, re-read `gen/gen.go` and
 `gen/main.go` at the new commit and check whether any rule changed.
 
+### WebIDL
+
+| Item | Value |
+|------|-------|
+| Upstream repository | [gpuweb/gpuweb](https://github.com/gpuweb/gpuweb) |
+| Upstream commit | `4e829b310ba7381034b93b974eb1a6aabfb464f7` |
+| Date vendored | 2026-11-01 |
+
+The IDL is not published as a separate file upstream. It lives in `<script type=idl>` blocks inside
+`spec/index.bs` (the Bikeshed source of the specification), so `scripts/update_spec.sh` cuts those blocks out in
+order and prepends a header that names the origin. The result is stable: the same commit always gives the same file.
+The pinned commit is the current development version of the specification, which is somewhat newer than what a
+browser ships. The web backend only calls members that the browser has, and a member that is missing in a browser
+fails there with a normal JavaScript error.
+
 ## How to update
 
 1. Pick the webgpu-headers commit you want to move to. Prefer the commit that the target Dawn version tracks
    (look at the `webgpu-headers` entry in Dawn's `DEPS` file).
-2. Run `scripts/update_spec.sh <full 40 character commit sha>`. It downloads `webgpu.json`, `schema.json`,
-   `webgpu.h` and the license from that exact commit and replaces the copies in this directory. Do not edit
-   vendored files by hand.
+2. Run `scripts/update_spec.sh <full 40 character commit sha> [<gpuweb commit sha>]`. It downloads `webgpu.json`,
+   `schema.json`, `webgpu.h` and the license from that exact commit and replaces the copies in this directory. With
+   the second argument it also rebuilds `webgpu.idl` and `LICENSE-gpuweb` from that commit of the gpuweb repository.
+   Do not edit vendored files by hand.
 3. Update the tables above (upstream commit, Dawn commit, date).
 4. Run `./gradlew compileJava :jwebgpu-test:test`. The conformance test compares the resolved model with
    `webgpu.h` and fails if they disagree, which usually means that upstream changed a generation rule.
