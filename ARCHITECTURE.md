@@ -36,8 +36,18 @@ The rules that shape this layout:
   point, the `GpuBackend` interface that each backend implements, and a neutral description of a window surface. It depends
   on nothing except the JetBrains annotations.
 - **`jwebgpu-ffm`**: The desktop backend. It implements the API classes with Java's Foreign Function and Memory API, holding
-  a plain `long` handle per object. It loads the Dawn native library for the current OS and architecture from the jar and
-  marshals descriptors through a reused per-thread scratch block. See [The FFM backend](#the-ffm-backend).
+  a plain `long` handle per object. It loads the Dawn native library for the current OS and architecture from the class
+  path (see `jwebgpu-natives-<target>` below) and marshals descriptors through a reused per-thread scratch block. See
+  [The FFM backend](#the-ffm-backend).
+- **`jwebgpu-natives-<target>`**: Six modules, one per desktop target (`linux-x86_64`, `linux-aarch64`, `windows-x86_64`,
+  `windows-aarch64`, `macos-x86_64`, `macos-aarch64`). Each is a jar with no classes whose only content is that target's
+  Dawn library at `natives/<target>/<library name>`, which is where the FFM loader looks. They are separate modules, and not
+  classifier artifacts of one module, so an application bundles only the platforms it ships to and so that dependency
+  substitution in a composite build works per module. They have no build file: `settings.gradle.kts` includes them from the
+  directories `jwebgpu-natives/<target>/`, and the convention plugin `jwebgpu.natives-jar` sets them up. Their Javadoc jar is
+  empty and their sources jar holds the license texts. The library is gitignored, so a build without it produces an empty jar
+  and prints a warning, but every publishing task fails, so a release can never ship an empty natives jar. Android needs no
+  such module because the `jwebgpu-jni` AAR carries its own libraries.
 - **`jwebgpu-jni`**: The Android backend, built as an Android library (AAR). Android's runtime does not include the FFM API, so
   this backend uses `native` methods that call a small generated C layer wrapping `webgpu.h`. Native handles are stored as
   `long`s. It supports the 64-bit ABIs only (arm64-v8a and x86_64). See [The JNI backend](#the-jni-backend).

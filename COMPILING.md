@@ -126,11 +126,18 @@ Use the normal coordinates in the dependencies; Gradle substitutes the local pro
 dependencies {
   implementation("io.github.stringdotjar:jwebgpu-api:<version>")
   runtimeOnly("io.github.stringdotjar:jwebgpu-ffm:<version>")
+
+  // The Dawn library of each desktop platform you ship to, one module per target.
+  runtimeOnly("io.github.stringdotjar:jwebgpu-natives-linux-x86_64:<version>")
+  runtimeOnly("io.github.stringdotjar:jwebgpu-natives-windows-x86_64:<version>")
 }
 ```
 
 - **Windows**: use forward slashes in the path, for example `C:/Users/You/jwebgpu`.
 - The version is ignored by a composite build, so any placeholder works.
+- Every `jwebgpu-natives-<target>` module is substituted the same way. Its jar holds the library only if you built it or
+  extracted the `dawn-natives-all` artifact into the jwebgpu checkout first (see
+  [Native libraries](#native-libraries-dawn)); otherwise Gradle prints a warning and the jar is empty.
 - To include the Android module in the substitution, enable it in jwebgpu's own `local.properties` (see below).
 
 ---
@@ -174,9 +181,10 @@ SDK Manager). See [Building the Android backend](#building-the-android-backend).
 ## Native libraries (Dawn)
 
 The desktop and Android backends call [Dawn](https://dawn.googlesource.com/dawn), Google's WebGPU implementation, through
-its `webgpu.h` C API. Dawn is built from source into **one shared library per platform and architecture**. Desktop libraries
-are bundled into the `jwebgpu-ffm` jar, and Android libraries into the `jwebgpu-jni` AAR. The libraries are **not committed**: CI builds them (see `.github/workflows/natives.yml`), and you can
-build the one for your own machine with `scripts/build_natives.sh`. You only need to do this when you run code that actually
+its `webgpu.h` C API. Dawn is built from source into **one shared library per platform and architecture**. Each desktop library
+is published as its own jar, `jwebgpu-natives-<target>`, so an application only bundles the platforms it ships to, and Android
+libraries are bundled into the `jwebgpu-jni` AAR. The libraries are **not committed**: CI builds them (see
+`.github/workflows/natives.yml`), and you can build the one for your own machine with `scripts/build_natives.sh`. You only need to do this when you run code that actually
 calls the GPU; compiling and the unit tests that do not touch the native library work without it.
 
 ### Building the library for your machine
@@ -202,9 +210,10 @@ Only the 64-bit Android ABIs are built, because the generated struct layouts ass
 The **Null backend** is a fake GPU that does nothing. Unit tests use it so they can run on machines without a graphics card.
 The script also accepts `fetch`, which only downloads the Dawn sources.
 
-Desktop libraries are copied to `jwebgpu-ffm/src/main/resources/natives/<target>/` as `libwebgpu_dawn.so`,
-`webgpu_dawn.dll` or `libwebgpu_dawn.dylib`. Android libraries are copied to `jwebgpu-jni/src/main/jniLibs/<abi>/` as
-`libwebgpu_dawn.so`, with the C++ runtime linked statically so apps need no `libc++_shared.so`. Both folders are gitignored. The library is stripped, and it exports **only** the
+Desktop libraries are copied to `jwebgpu-natives/<target>/src/main/resources/natives/<target>/` as `libwebgpu_dawn.so`,
+`webgpu_dawn.dll` or `libwebgpu_dawn.dylib`, which makes them the content of the `jwebgpu-natives-<target>` module. Publishing
+a natives module fails if its library is missing. Android libraries are copied to `jwebgpu-jni/src/main/jniLibs/<abi>/` as
+`libwebgpu_dawn.so`, with the C++ runtime linked statically so apps need no `libc++_shared.so`. Both locations are gitignored. The library is stripped, and it exports **only** the
 `wgpu*` functions from `webgpu.h`; the script checks this at the end and fails if anything else leaks out. On Linux it also
 links the C++ runtime statically, so the library needs nothing but glibc. The build machine's glibc sets the floor, so CI
 builds the Linux libraries inside the `manylinux_2_28` container (glibc 2.28), which makes them load on every mainstream
@@ -242,7 +251,7 @@ Never ship a library built that way. CI always builds with X11 and Wayland on.
 | `JWEBGPU_DAWN_CACHE` | `~/.cache/jwebgpu/dawn` | Where the Dawn sources (`src/`) and build trees (`build/<target>/`) live. Delete it to start clean. |
 | `JWEBGPU_JOBS` | number of CPU cores | Parallel compile jobs. Lower it if the build runs out of memory. |
 | `JWEBGPU_X11`, `JWEBGPU_WAYLAND` | `ON` | Linux surface support. |
-| `JWEBGPU_OUT_DIR` | the target's folder under `natives/` or `jniLibs/` | Where the finished library is copied. |
+| `JWEBGPU_OUT_DIR` | the natives module's `src/main/resources/natives/<target>/` folder, or the `jniLibs/<abi>/` folder | Where the finished library is copied. |
 | `JWEBGPU_MAX_GLIBC` | no limit | Linux only. Fails the build if the library needs a newer glibc (CI uses `2.28`). |
 | `JWEBGPU_ANDROID_API` | `26` | Lowest Android API level the Android library supports. |
 | `JWEBGPU_ANDROID_NDK` | see above | Path to the Android NDK. |

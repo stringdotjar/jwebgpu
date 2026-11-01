@@ -32,7 +32,8 @@ jwebgpu is a standalone library with no dependencies on other projects, and it c
 | Module | Purpose | Platform |
 |--------|---------|----------|
 | `jwebgpu-api` | The platform-neutral API. No dependencies besides annotations. | Everywhere |
-| `jwebgpu-ffm` | Backend built on Java's Foreign Function and Memory API, calling Dawn. | Desktop |
+| `jwebgpu-ffm` | Backend built on Java's Foreign Function and Memory API, calling Dawn. Carries no native library. | Desktop |
+| `jwebgpu-natives-<target>` | The Dawn library of one desktop target, one module each: `linux-x86_64`, `linux-aarch64`, `windows-x86_64`, `windows-aarch64`, `macos-x86_64` and `macos-aarch64`. | Desktop |
 | `jwebgpu-jni` | Backend built on JNI, shipped as an Android library. | Android |
 | `jwebgpu-teavm` | Backend that wraps the browser's `navigator.gpu` using TeaVM. | Web |
 | `jwebgpu-generator` | Build-time tool that generates the API and the backends from the specs. Never published. | Build only |
@@ -56,8 +57,18 @@ nothing changes in your build once jwebgpu is published:
 dependencies {
   implementation("io.github.stringdotjar:jwebgpu-api:<version>")
   runtimeOnly("io.github.stringdotjar:jwebgpu-ffm:<version>") // Desktop. Use -jni on Android, -teavm on the web.
+
+  // Desktop only: the Dawn library of every platform you ship to. Add just the ones you need.
+  runtimeOnly("io.github.stringdotjar:jwebgpu-natives-linux-x86_64:<version>")
+  runtimeOnly("io.github.stringdotjar:jwebgpu-natives-windows-x86_64:<version>")
+  runtimeOnly("io.github.stringdotjar:jwebgpu-natives-macos-aarch64:<version>")
 }
 ```
+
+The desktop libraries are big (about 5 to 11 MB each), so they live in one jar per platform instead of in
+`jwebgpu-ffm`. An application bundles only the platforms it ships to. The other available modules are
+`jwebgpu-natives-linux-aarch64`, `jwebgpu-natives-windows-aarch64` and `jwebgpu-natives-macos-x86_64`. Android and the
+web need no natives module: the Android AAR carries its own libraries, and the browser already ships WebGPU.
 
 ### Installing a backend
 
@@ -86,8 +97,8 @@ java --enable-native-access=ALL-UNNAMED -cp ... YourMain
 
 (An executable jar can say `Enable-Native-Access: ALL-UNNAMED` in its manifest instead; the `jwebgpu-ffm` jar does.)
 
-`JWebGpuFfm.install()` loads Dawn for the current operating system and CPU from the `jwebgpu-ffm` jar. It copies the
-library once into a cache directory (`~/.cache/jwebgpu/natives/<hash>/` on Linux), so later runs start without writing
+`JWebGpuFfm.install()` loads Dawn for the current operating system and CPU from the matching `jwebgpu-natives-<target>`
+jar on the class path. If that jar is missing, the error names the exact module to add. It copies the library once into a cache directory (`~/.cache/jwebgpu/natives/<hash>/` on Linux), so later runs start without writing
 anything. To use another build of the library, call `JWebGpuFfm.install(Path.of("/path/to/libwebgpu_dawn.so"))` or start
 the program with `-Djwebgpu.library.path=/path/to/libwebgpu_dawn.so`. The libraries are not committed; see
 [COMPILING.md](COMPILING.md#native-libraries-dawn) to build one.
