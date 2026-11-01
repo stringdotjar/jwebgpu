@@ -22,4 +22,16 @@ dependencies {
 
 tasks.named<Test>("test") {
   useJUnitPlatform()
+
+  // The generator tests read the vendored specification files.
+  systemProperty("jwebgpu.specDir", rootProject.layout.projectDirectory.dir("spec").asFile.absolutePath)
+
+  // Optional: Dawn's generated webgpu.h, used to report what Dawn adds. The tests skip when it is missing.
+  // Pass -Pjwebgpu.dawnHeader=/path/to/webgpu.h to enable them.
+  providers.gradleProperty("jwebgpu.dawnHeader").orNull?.let { systemProperty("jwebgpu.dawnHeader", it) }
+
+  // Show what the Dawn comparison reports.
+  testLogging {
+    showStandardStreams = true
+  }
 }
