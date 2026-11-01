@@ -23,6 +23,8 @@
  */
 package io.github.stringdotjar.jwebgpu.generator;
 
+import io.github.stringdotjar.jwebgpu.generator.emit.ApiEmitter;
+import io.github.stringdotjar.jwebgpu.generator.emit.GeneratedFile;
 import io.github.stringdotjar.jwebgpu.generator.model.EnumType;
 import io.github.stringdotjar.jwebgpu.generator.model.GpuFunction;
 import io.github.stringdotjar.jwebgpu.generator.model.Spec;
@@ -32,17 +34,26 @@ import io.github.stringdotjar.jwebgpu.generator.parse.JsonException;
 import io.github.stringdotjar.jwebgpu.generator.parse.SpecException;
 import io.github.stringdotjar.jwebgpu.generator.parse.SpecLoader;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 
 /**
  * Entry point of the build-time code generator.
  *
- * <p>For now the generator only loads the specification and prints a summary of what it found. The emitters that
- * write the API and the backends will be added on top of the same {@link Spec} model.
+ * <p>Usage: {@code Generator [--spec path/to/webgpu.json] [--emit api --out directory]}.
  *
- * <p>Usage: {@code Generator [path to webgpu.json]}. Without an argument, {@code spec/webgpu.json} is read.
+ * <ul>
+ *   <li>Without {@code --emit}, the generator loads the specification and prints a summary of what it found.
+ *   <li>With {@code --emit api}, it writes the sources of the platform-neutral API into the {@code --out} directory
+ *       (see {@link ApiEmitter}). The directory is created if needed, and every file is replaced.
+ * </ul>
+ *
+ * <p>Without {@code --spec}, {@code spec/webgpu.json} is read relative to the working directory. A single plain
+ * argument is also taken as the path of the specification.
  */
 public final class Generator {
 
@@ -51,23 +62,71 @@ public final class Generator {
   private Generator() {}
 
   /**
-   * Loads the specification and prints a summary to standard output.
+   * Runs the generator.
    *
-   * @param args Optionally, the path of {@code webgpu.json}.
+   * @param args The command line arguments, see the class description.
    */
   public static void main(String[] args) {
-    Path file = Path.of(args.length > 0 ? args[0] : DEFAULT_SPEC);
+    String spec = DEFAULT_SPEC;
+    String emit = null;
+    String out = null;
+    for (int i = 0; i < args.length; i++) {
+      switch (args[i]) {
+        case "--spec" -> spec = value(args, ++i);
+        case "--emit" -> emit = value(args, ++i);
+        case "--out" -> out = value(args, ++i);
+        default -> spec = args[i];
+      }
+    }
+    Path file = Path.of(spec);
     if (!Files.isRegularFile(file)) {
       System.err.println("Specification not found: " + file.toAbsolutePath());
       System.exit(1);
       return;
     }
     try {
-      System.out.println(summarize(SpecLoader.load(file)));
+      Spec model = SpecLoader.load(file);
+      if (emit == null) {
+        System.out.println(summarize(model));
+      } else if (emit.equals("api") && out != null) {
+        int count = write(ApiEmitter.emit(model), Path.of(out));
+        System.out.println("Wrote " + count + " API source files to " + out);
+      } else {
+        System.err.println("Usage: Generator [--spec file] [--emit api --out directory]");
+        System.exit(2);
+      }
     } catch (JsonException | SpecException e) {
       System.err.println("Cannot read " + file + ": " + e.getMessage());
       System.exit(1);
+    } catch (IOException e) {
+      System.err.println("Cannot write the generated sources: " + e.getMessage());
+      System.exit(1);
     }
+  }
+
+  /**
+   * Writes generated files below a directory.
+   *
+   * @param files The files, with paths relative to the directory.
+   * @param dir The output directory. Missing parent directories are created.
+   * @return The number of files written.
+   * @throws IOException If a file cannot be written.
+   */
+  public static int write(List<GeneratedFile> files, Path dir) throws IOException {
+    for (GeneratedFile f : files) {
+      Path target = dir.resolve(f.path());
+      Files.createDirectories(target.getParent());
+      Files.writeString(target, f.source(), StandardCharsets.UTF_8);
+    }
+    return files.size();
+  }
+
+  private static String value(String[] args, int index) {
+    if (index >= args.length) {
+      System.err.println("Missing value for " + args[index - 1]);
+      System.exit(2);
+    }
+    return args[index];
   }
 
   /**
