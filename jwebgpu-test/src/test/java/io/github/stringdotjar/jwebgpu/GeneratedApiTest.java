@@ -214,7 +214,8 @@ class GeneratedApiTest {
     assertSame(GpuSamplerBindingType.BINDING_NOT_USED, e.sampler.type);
     assertSame(GpuTextureSampleType.BINDING_NOT_USED, e.texture.sampleType);
     assertSame(GpuStorageTextureAccess.BINDING_NOT_USED, e.storageTexture.access);
-    assertSame(GpuBufferBindingType.UNDEFINED, new GpuBufferBindingLayout().type, "standalone layouts keep their own defaults");
+    assertSame(GpuBufferBindingType.UNDEFINED, new GpuBufferBindingLayout().type,
+        "standalone layouts keep their own defaults");
     e.buffer.type = GpuBufferBindingType.UNIFORM;
     e.reset();
     assertSame(GpuBufferBindingType.BINDING_NOT_USED, e.buffer.type);
