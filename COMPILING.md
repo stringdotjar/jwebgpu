@@ -15,7 +15,8 @@ you through every step from a clean machine.
 5. [Using a local checkout from another project](#using-a-local-checkout-from-another-project)
 6. [Setting up the Android SDK (for the JNI backend)](#setting-up-the-android-sdk-for-the-jni-backend)
 7. [Native libraries (Dawn)](#native-libraries-dawn)
-8. [Troubleshooting](#troubleshooting)
+8. [Building the Android backend](#building-the-android-backend)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -164,8 +165,8 @@ To build the Android module, enable it in one of two ways (do **not** add this t
 The typical location is `C:\Users\<You>\AppData\Local\Android\Sdk` on Windows, `~/Library/Android/sdk` on macOS, and
 `~/Android/Sdk` on Linux.
 
-> [!NOTE]
-> The JNI backend will need the Android NDK and CMake once its native glue is written. They are not required yet.
+The JNI backend also needs the **Android NDK 28.2.13676358** and **CMake 3.22.1** (install both from **SDK Tools** in the
+SDK Manager). See [Building the Android backend](#building-the-android-backend).
 
 ---
 
@@ -255,6 +256,54 @@ vendored specification in `spec/` must come from the same revision (Dawn's `DEPS
   space (1.3 GB of it is the downloaded sources).
 - **Later runs**: sources are reused from the cache, and an unchanged build tree finishes in seconds.
 
+## Building the Android backend
+
+The JNI backend has two native parts: Dawn (a prebuilt library per ABI) and the C glue that Gradle generates and compiles
+with the NDK. It supports **arm64-v8a and x86_64** only, because the struct layouts assume 8-byte pointers.
+
+1. **Get the Dawn libraries.** CI builds them (`scripts/build_natives.sh android-arm64-v8a` and `android-x86_64`). Put each
+   one at `jwebgpu-jni/src/main/jniLibs/<abi>/libwebgpu_dawn.so`. That folder is gitignored. The libraries are built for
+   Android 8.0 (API 26) with Vulkan and the Null backend (OpenGL ES is switched off), and link the C++ runtime statically,
+   so no `libc++_shared.so` is needed.
+2. **Enable the Android module** (see above) and build:
+   ```bash
+   ./gradlew -PincludeAndroid=true :jwebgpu-jni:assembleRelease
+   ```
+   Gradle runs the generator (`--emit jni-java-android` and `--emit jni-c`), then CMake compiles
+   `build/generated/sources/jwebgpu/main/cpp/jwebgpu_jni.c` with `src/main/cpp/native_helpers.c` into `libjwebgpu_jni.so`
+   and links it against the Dawn library of each ABI. The AAR carries both libraries.
+3. **Optional settings** (Gradle properties):
+
+   | Property | Meaning |
+   |----------|---------|
+   | `-Pjwebgpu.abis=arm64-v8a` | Build only some ABIs (comma separated). Useful while you only have one Dawn library. |
+   | `-Pjwebgpu.dawnInclude=/path/to/dir` | The directory that contains `webgpu.h`. The default is the vendored `spec/` directory. Point it at the include directory of a particular Dawn build to compile against its header: the glue checks every struct layout it uses at compile time, so a header that differs from the specification fails the build. |
+   | `-Pjwebgpu.fastNative=false` | Generate plain `native` methods instead of ART's `@FastNative`, for example to measure what the annotation saves. |
+
+The sample app `samples/android-triangle` runs the backend on a device. It is a release build (not debuggable, shrunk with
+R8, signed with the debug key so it installs), and it reports to logcat:
+
+```bash
+./gradlew -PincludeAndroid=true :samples:android-triangle:assembleRelease
+adb install -r samples/android-triangle/build/outputs/apk/release/android-triangle-release.apk
+adb shell am start -n io.github.stringdotjar.jwebgpu.samples.android/.MainActivity
+adb logcat -s jwebgpu          # ends with "RESULT OK" and "ALL DONE"
+adb uninstall io.github.stringdotjar.jwebgpu.samples.android
+```
+
+### Testing the JNI backend on the desktop
+
+The same generated Java and C build for the desktop JVM, so the unit tests can run the Android backend without a phone:
+
+```bash
+./gradlew :jwebgpu-test:testJni
+```
+
+The task builds `libjwebgpu_jni` for your machine with CMake and the desktop Dawn library (the one from
+[Native libraries](#native-libraries-dawn), or `-Pjwebgpu.library=/path/to/libwebgpu_dawn.so`). It needs CMake and a C
+compiler; **without the Dawn library the glue build is skipped and the JNI tests are skipped, not failed**. The software
+Vulkan run works the same way as for the FFM backend (`VK_ICD_FILENAMES=... ./gradlew :jwebgpu-test:testJni`).
+
 ## Troubleshooting
 
 ### Wrong Java version
@@ -279,6 +328,13 @@ vendored specification in `spec/` must come from the same revision (Dawn's `DEPS
 - **Symptom**: Building the Android module fails with "SDK location not found" or license errors.
 - **Fix**: Create `local.properties` in the repository root with `sdk.dir=/path/to/android/sdk`, and run
   `sdkmanager --licenses` (or accept the licenses in Android Studio).
+
+### Android: the Dawn library or the glue is missing
+
+- **Symptom**: The CMake step fails with "The Dawn library does not exist", or the app crashes with an
+  `UnsatisfiedLinkError` for `webgpu_dawn`.
+- **Fix**: Put `libwebgpu_dawn.so` in `jwebgpu-jni/src/main/jniLibs/<abi>/` for every ABI you build (or restrict the build
+  with `-Pjwebgpu.abis=...`), and run the app on an arm64-v8a or x86_64 device or emulator.
 
 ### Dependency not found from another project
 

@@ -24,7 +24,7 @@ jwebgpu is a standalone library with no dependencies on other projects, and it c
 
 > [!IMPORTANT]
 > **Status: early development.** jwebgpu is not published to Maven Central or JitPack yet. The generator, the API and
-> the desktop (FFM) backend work and draw on real GPUs; the Android (JNI) and web (TeaVM) backends are still being
+> the desktop (FFM) and Android (JNI) backends work and draw on real GPUs; the web (TeaVM) backend is still being
 > written. Expect everything to change.
 
 ## Modules
@@ -92,16 +92,47 @@ anything. To use another build of the library, call `JWebGpuFfm.install(Path.of(
 the program with `-Djwebgpu.library.path=/path/to/libwebgpu_dawn.so`. The libraries are not committed; see
 [COMPILING.md](COMPILING.md#native-libraries-dawn) to build one.
 
+### Running on Android
+
+The Android backend, `jwebgpu-jni`, is an Android library (AAR) for the **64-bit ABIs arm64-v8a and x86_64** with a
+**minSdk of 26** (Dawn needs Vulkan 1.1, which Android 8.0 introduced). 32-bit ABIs are not supported because the struct
+layouts the generator computes assume 8-byte pointers. The AAR carries `libjwebgpu_jni.so` (the generated C glue) and
+Dawn's `libwebgpu_dawn.so` for each ABI; both load when you install the backend:
+
+```java
+// Once, at startup (for example in Application.onCreate()).
+JWebGpuJni.install();
+
+GpuInstance instance = JWebGpu.createInstance();
+```
+
+To draw on the screen, turn an Android `Surface` (a `SurfaceView` or `TextureView` surface) into a WebGPU surface with
+`AndroidSurface`, and release it when Android destroys the surface:
+
+```java
+public void surfaceCreated(SurfaceHolder holder) {
+  target = AndroidSurface.create(instance, holder.getSurface());
+  GpuSurface surface = target.getSurface(); // configure it, then render
+}
+
+public void surfaceDestroyed(SurfaceHolder holder) {
+  target.release();
+}
+```
+
+The library ships R8 consumer rules, so shrinking an app does not break the native glue. `samples/android-triangle` is a
+small app that runs the backend on a device: see [COMPILING.md](COMPILING.md#building-the-android-backend) to build it.
+
 ### Garbage-free calls
 
-The desktop backend allocates nothing per call. Object handles are plain `long`s inside the wrappers, and descriptors,
+The desktop and Android backends allocate nothing per call. Object handles are plain `long`s inside the wrappers, and descriptors,
 strings, arrays and callbacks are copied into a native scratch block that every thread reuses. A frame that creates an
 encoder and a render pass, records state and a draw, uploads some floats and submits allocates 0 bytes on the Java heap
 (the unit tests check that). Methods that create objects also have an overload that refills an existing wrapper, such as
 `device.createCommandEncoder(descriptor, encoder)`.
 
 The scratch block of a thread grows when one call needs more than it holds and never shrinks by itself. After a rare, huge
-upload, call `JWebGpuFfm.trimScratch()` on that thread to give the memory back.
+upload, call `JWebGpuFfm.trimScratch()` (or `JWebGpuJni.trimScratch()` on Android) on that thread to give the memory back.
 
 ### Try it
 

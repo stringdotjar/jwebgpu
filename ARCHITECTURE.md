@@ -40,7 +40,7 @@ The rules that shape this layout:
   marshals descriptors through a reused per-thread scratch block. See [The FFM backend](#the-ffm-backend).
 - **`jwebgpu-jni`**: The Android backend, built as an Android library (AAR). Android's runtime does not include the FFM API, so
   this backend uses `native` methods that call a small generated C layer wrapping `webgpu.h`. Native handles are stored as
-  `long`s.
+  `long`s. It supports the 64-bit ABIs only (arm64-v8a and x86_64). See [The JNI backend](#the-jni-backend).
 - **`jwebgpu-teavm`**: The web backend. Browsers already ship WebGPU, so there is no native code. It declares the browser's
   `navigator.gpu` types with TeaVM's JavaScript Objects (JSO) interop, wraps them in API implementations, and bridges
   promises to the callback style the API uses at startup. It depends on `teavm-core` at compile time.
@@ -166,6 +166,56 @@ How a call stays free of allocation:
   exception handler, because an exception must never travel into native code.
 
 The class files use method handles for the upcall stubs (the foreign function API requires them), but no reflection.
+
+## The JNI backend
+
+`jwebgpu-jni` mirrors the FFM backend, so the two behave the same: the same wrapper classes with a `long` handle, the same
+refilling overloads, the same per-thread scratch memory, the same callback slot table. What differs is how Java reaches C.
+
+**How a call crosses into C.** Java does not pass descriptor objects to C, and C does not unpack anything. Each thread owns
+a direct `ByteBuffer` (the scratch block). The generated marshalling code writes the descriptor into it **at the byte
+offsets of the C struct layout**, and every pointer it writes inside a struct (an array, a nested struct, a string, a chain
+of extension structs) is an **absolute address**: the address of the buffer's first byte, asked from the native side once
+when the block is created, plus the offset. The block is therefore already a valid `WGPU*` struct tree. The native method
+receives plain `long`s, casts them and calls `webgpu.h`:
+
+```c
+static void jw_wgpuQueueSubmit(JW_ENV, jlong a0, jlong a1, jlong a2) {
+  wgpuQueueSubmit((WGPUQueue) (uintptr_t) a0, (size_t) a1, (WGPUCommandBuffer const *) (uintptr_t) a2);
+}
+```
+
+A struct that C takes by value (a string view or a callback info) travels as the address of the struct in scratch memory,
+and the glue copies it. Compile-time checks (`_Static_assert`) in the generated C file compare the size and every field
+offset the Java side uses with the real header, so a header that differs from the specification fails the build.
+
+**What is generated.** `--emit jni-java` writes the `JniGpu...` object classes, the `JniGpu...Struct` marshallers,
+`JniChains`, `JniCallbacks` and `Jni` (one `static native` method per C function). `--emit jni-c` writes the single C file
+`jwebgpu_jni.c`: the native functions, the table that registers them with `RegisterNatives` from `JNI_OnLoad` (no
+reflection and no name mangling), and the callback entry points. `--emit jni-java-android` writes the same Java classes with
+ART's `@FastNative` on the cheap, non-blocking natives (render pass, command encoder, queue and buffer calls). Calls that can
+wait (presenting, compiling shaders and pipelines, waiting for futures) stay normal native calls, because a fast native call
+that blocks would also block the garbage collector. The annotation is the only Android-only part of the generated code, so the
+plain flavor compiles for a desktop JVM too.
+
+**Hand-written parts.** `Scratch` (the per-thread block with the same reentrancy rules as the FFM scratch memory),
+`Native` (the loader and the few helper natives: a buffer's address, reading memory the library owns, bulk array copies),
+`CallbackTable`, `JWebGpuJni` and, in the `android` package, `AndroidSurface`. Reading memory that the native library owns
+(the strings and lists of a callback or of an output struct) goes through a native call, so it is used only on the rare
+paths that hand text over; the per-frame path touches only scratch memory.
+
+**Callbacks.** Dawn may call a callback from its own threads (a lost device, an uncaptured error), so the C entry point
+attaches the thread to the Java virtual machine as a daemon thread if needed and detaches it when the thread ends. It calls a
+static Java method with primitive arguments only (strings arrive as an address and a length and are decoded as real UTF-8,
+not as the modified UTF-8 of `NewStringUTF`), so a callback allocates nothing in C. As in the FFM backend, the callback's slot
+number travels as `userdata1`, and a nested call made from inside a callback keeps the scratch memory of the call it
+interrupted.
+
+**Testing without a phone.** The same generated Java and C also build for the desktop. The Gradle task
+`:jwebgpu-test:buildJniHostGlue` compiles `libjwebgpu_jni` for the machine with CMake, and `:jwebgpu-test:testJni` runs the
+backend tests (the triangle on the real GPU, the Null backend and, with `VK_ICD_FILENAMES`, a software Vulkan driver; the
+10,000-frame allocation check; the marshalling tests) against the JNI backend. The tests in the `backend` package run
+unchanged against either backend, chosen by the system property `jwebgpu.backend`.
 
 ## Explicit backend install
 
