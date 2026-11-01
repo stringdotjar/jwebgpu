@@ -103,6 +103,22 @@ anything. To use another build of the library, call `JWebGpuFfm.install(Path.of(
 the program with `-Djwebgpu.library.path=/path/to/libwebgpu_dawn.so`. The libraries are not committed; see
 [COMPILING.md](COMPILING.md#native-libraries-dawn) to build one.
 
+### Building a GraalVM native image
+
+The desktop backend works in a GraalVM native image without any configuration of your own. Add the same dependencies as for a
+normal run (`jwebgpu-api`, `jwebgpu-ffm` and the `jwebgpu-natives-<target>` jar of each platform), then build the image the way
+you always do, with `native-image` or with the GraalVM Gradle plugin (`org.graalvm.buildtools.native`). Every jwebgpu jar ships
+the metadata the native image builder needs, generated from the same specification as the code:
+
+- `jwebgpu-ffm` lists every native function and every callback (the foreign downcalls and upcalls), the callback methods that
+  the backend looks up by name, and the builder argument `--enable-native-access=ALL-UNNAMED`.
+- Each `jwebgpu-natives-<target>` jar registers its Dawn library as a resource, so the image embeds it and extracts it on the
+  first run, exactly like a run on the JVM.
+
+You need **GraalVM for JDK 25 or newer** (Oracle GraalVM or GraalVM Community) on **Linux x86-64, Linux AArch64, Windows
+x86-64 or macOS AArch64**, because those are the platforms GraalVM supports for foreign calls. `samples/triangle-offscreen` is
+built this way in CI; see [COMPILING.md](COMPILING.md#building-a-graalvm-native-image).
+
 ### Running on Android
 
 The Android backend, `jwebgpu-jni`, is an Android library (AAR) for the **64-bit ABIs arm64-v8a and x86_64** with a
@@ -173,6 +189,8 @@ upload, call `JWebGpuFfm.trimScratch()` (or `JWebGpuJni.trimScratch()` on Androi
 ```bash
 ./gradlew :samples:triangle-offscreen:run
 ```
+
+The same sample builds as a GraalVM native image with `./gradlew :samples:triangle-offscreen:nativeCompile`.
 
 `samples/web-triangle` draws the same triangle in a browser, both off screen and on a canvas, and runs about thirty more
 checks of the web backend. Run it in a headless Chrome with `./gradlew :samples:web-triangle:browserTest`.

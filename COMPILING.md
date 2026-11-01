@@ -17,7 +17,8 @@ you through every step from a clean machine.
 7. [Native libraries (Dawn)](#native-libraries-dawn)
 8. [Building the Android backend](#building-the-android-backend)
 9. [Building and testing the web backend](#building-and-testing-the-web-backend)
-10. [Troubleshooting](#troubleshooting)
+10. [Building a GraalVM native image](#building-a-graalvm-native-image)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -350,6 +351,36 @@ soon as a canvas texture is used.
 
 To look at the page yourself, serve `build/web` over `http://localhost` (WebGPU needs a secure context and a WasmGC
 module cannot load from `file://`), for example with `python3 -m http.server --directory samples/web-triangle/build/web`.
+
+## Building a GraalVM native image
+
+`samples/triangle-offscreen` is built as a native image to prove that the desktop backend needs no native image configuration of
+its own. It uses the GraalVM Gradle plugin (`org.graalvm.buildtools.native`) and nothing else: the metadata comes from the
+`jwebgpu-ffm` and `jwebgpu-natives-<target>` jars (see [ARCHITECTURE.md](ARCHITECTURE.md#graalvm-native-image-metadata)).
+
+1. Install **GraalVM for JDK 25 or newer** (for example Oracle GraalVM from
+   [graalvm.org](https://www.graalvm.org/downloads/)) and a C toolchain (`gcc` and the `zlib` headers on Linux).
+2. Make sure the Dawn library of your machine is in place (see [Native libraries](#native-libraries-dawn)), because the image
+   embeds it.
+3. Run the build with Gradle pointed at the GraalVM installation:
+
+```bash
+./gradlew -Porg.gradle.java.installations.paths=/path/to/graalvm-jdk-25 :samples:triangle-offscreen:nativeCompile
+```
+
+   (Do not commit that path anywhere. Setting `JAVA_HOME` to the GraalVM installation works as well.) The build takes a few
+   minutes and writes `samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen`.
+4. Run it. With no argument it draws the triangle on the first real adapter; with `null` it uses Dawn's Null backend, which
+   needs no graphics card and draws nothing:
+
+```bash
+samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen
+samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen null
+```
+
+CI builds the image on Linux and runs it on the Null backend in its "Native image" job. If the native image builder ever
+reports a missing foreign registration (a `MissingForeignRegistrationError` at run time), fix the generator
+(`GraalEmitter`), never the sample: the metadata must come from the jars.
 
 ## Troubleshooting
 

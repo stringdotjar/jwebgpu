@@ -178,6 +178,33 @@ How a call stays free of allocation:
 
 The class files use method handles for the upcall stubs (the foreign function API requires them), but no reflection.
 
+### GraalVM native image metadata
+
+A GraalVM native image is compiled ahead of time, so the builder must be told every native function the program may call and
+every function pointer the native code may call back (the foreign downcalls and upcalls), plus the methods that are looked up
+by name and the files that are read as class path resources. jwebgpu generates all of it, so an application needs none:
+
+- `--emit graal` (`GraalEmitter`) writes `META-INF/native-image/io.github.stringdotjar/jwebgpu-ffm/reachability-metadata.json`
+  and `native-image.properties` into the resources of `jwebgpu-ffm` (the `jwebgpu.generated-sources` convention, with
+  `emitResources("graal")`; the files live under `build/` and are never committed). The JSON has a `foreign.downcalls` entry
+  for every distinct native function shape, a `foreign.upcalls` and a `foreign.directUpcalls` entry for every callback, and
+  one `reflection` entry for the callback class, because `Native.upcall(...)` finds each callback method by name with
+  `MethodHandles.Lookup.findStatic(...)`. The properties file passes `--enable-native-access=ALL-UNNAMED`.
+- **One source of truth.** The Java emitters and `GraalEmitter` build every descriptor through `FfmDescriptors`, and a layout is
+  one `FfmLayout` record that holds both spellings (`ValueLayout.JAVA_LONG` in the Java source, `jlong` in the metadata). A
+  function that is bound in the backend is therefore always registered, and a test (`GraalEmitterTest`) also reads the
+  generated Java text, translates each `FunctionDescriptor` by plain text rules and looks it up in the JSON.
+- **Hand-written parts.** The only descriptors that the hand-written code creates are the two struct layouts in `Native`
+  (`STRING_VIEW` and `CALLBACK_INFO`). The generator knows them (`FfmLayout`) and fails the build if the specification changes
+  the size or the field offsets of either struct, and `NativeLayoutsTest` compares the metadata with the real `Native`
+  constants. Pointers are `long` everywhere else, so no other layout exists.
+- **Natives jars.** The `jwebgpu.natives-jar` convention plugin writes `META-INF/native-image/io.github.stringdotjar/
+  jwebgpu-natives-<target>/reachability-metadata.json` with a `resources` entry for the library and `licenses.txt` of the
+  target, so `NativeLoader` finds `natives/<target>/<library>` inside the image.
+
+The metadata uses fixed-size layout names (`jlong`, `jint`, `struct(...)`) from GraalVM's reachability metadata schema, so the
+text means the same on every platform.
+
 ## The JNI backend
 
 `jwebgpu-jni` mirrors the FFM backend, so the two behave the same: the same wrapper classes with a `long` handle, the same

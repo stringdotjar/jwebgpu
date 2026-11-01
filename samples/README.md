@@ -5,7 +5,7 @@ They double as living documentation and as the manual check that a backend reall
 
 | Sample | What it shows | Run it |
 |--------|---------------|--------|
-| `triangle-offscreen` | Installs the desktop backend, requests an adapter and a device, builds a pipeline from a WGSL shader, draws a triangle into a texture that is never shown, and prints the pixels as text. It needs no window. | `./gradlew :samples:triangle-offscreen:run` |
+| `triangle-offscreen` | Installs the desktop backend, requests an adapter and a device, builds a pipeline from a WGSL shader, draws a triangle into a texture that is never shown, and prints the pixels as text. It needs no window. | `./gradlew :samples:triangle-offscreen:run`. For a GraalVM native image, see [Building a GraalVM native image](../COMPILING.md#building-a-graalvm-native-image). |
 | `android-triangle` | An Android app that installs the JNI backend on a real device, draws a triangle off screen and on a `SurfaceView`, checks that 10,000 frames allocate nothing, and times single calls. Results go to logcat under the tag `jwebgpu`. | See [Building the Android backend](../COMPILING.md#building-the-android-backend) |
 | `web-triangle` | Installs the web backend, draws a triangle off screen and on a canvas (corner positions from a Java `float[]` and a direct `ByteBuffer`), and then runs about thirty checks: bind groups with dynamic offsets, a compute shader, a sampled texture, pipelines created in the background, error scopes, compilation messages, futures, getters and wrapper reuse. Translated to JavaScript and to WasmGC. | `./gradlew :samples:web-triangle:browserTest` runs both in headless Chrome. `webDist` writes `build/web` with `js.html` and `wasm.html`, which need to be served over `http://localhost`. |
 
