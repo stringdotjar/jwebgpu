@@ -44,8 +44,10 @@ fun generate(name: String, kind: String, outDir: Provider<Directory>) = tasks.re
   }
 }
 
-// The Android flavor marks the cheap native methods with ART's @FastNative annotation.
-val generateJava = generate("generateJWebGpuJniJavaAndroidSources", "jni-java-android", generatedJava)
+// The Android flavor marks the cheap native methods with ART's @FastNative annotation. Pass -Pjwebgpu.fastNative=false
+// to build plain native methods instead, for example to measure what the annotation saves.
+val javaKind = if (providers.gradleProperty("jwebgpu.fastNative").orNull == "false") "jni-java" else "jni-java-android"
+val generateJava = generate("generateJWebGpuJniJavaSources", javaKind, generatedJava)
 val generateGlue = generate("generateJWebGpuJniCSources", "jni-c", generatedGlue)
 
 // The Dawn headers: by default the vendored spec/webgpu.h. To build against the header of a particular Dawn build
@@ -61,7 +63,8 @@ android {
   defaultConfig {
     minSdk = 26
     ndk {
-      abiFilters += listOf("arm64-v8a", "x86_64")
+      // For a local build with only one Dawn library, pass -Pjwebgpu.abis=arm64-v8a (comma separated).
+      abiFilters += (providers.gradleProperty("jwebgpu.abis").orNull?.split(',') ?: listOf("arm64-v8a", "x86_64"))
     }
     consumerProguardFiles("consumer-rules.pro")
     externalNativeBuild {
@@ -95,6 +98,10 @@ android {
 tasks.named("preBuild") {
   dependsOn(generateGlue, generateJava)
 }
+
+// Javadoc and the sources jar read the generated Java files directly, so they need the generator to run first.
+tasks.matching { it.name.contains("javadoc", ignoreCase = true) || it.name.contains("sourcesJar", ignoreCase = true) }
+  .configureEach { dependsOn(generateJava) }
 
 dependencies {
   api(project(":jwebgpu-api"))

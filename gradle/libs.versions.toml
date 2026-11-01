@@ -15,6 +15,7 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 teavm-core = { module = "org.teavm:teavm-core", version.ref = "teavm" }
 
 [plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 vanniktech = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech" }

@@ -12,6 +12,7 @@ plugins {
   id("jwebgpu.spotless-android")
   id("jwebgpu.checkstyle-android")
   alias(libs.plugins.vanniktech) apply false
+  alias(libs.plugins.android.application) apply false
   alias(libs.plugins.android.library) apply false
 }
 

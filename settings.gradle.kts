@@ -67,4 +67,5 @@ include(
 
 if (includeAndroid) {
   include("jwebgpu-jni")
+  include("samples:android-triangle")
 }
