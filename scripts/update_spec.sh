@@ -9,7 +9,7 @@
 #
 # With a second argument, the browser WebIDL (spec/webgpu.idl) is refreshed as well. It is cut out of the
 # specification source in https://github.com/gpuweb/gpuweb at that commit: every <script type=idl> block of
-# spec/index.bs is copied in order, below a header that names the origin. Pass the same second argument again to
+# spec/index.bs and then of spec/sections/copies.bs is copied in order, below a header that names the origin. Pass the same second argument again to
 # keep the IDL where it is, or leave it out to leave the IDL file alone.
 
 set -euo pipefail
@@ -56,12 +56,13 @@ done
 
 if [ -n "$idl_commit" ]; then
   gpuweb="https://raw.githubusercontent.com/gpuweb/gpuweb/$idl_commit"
-  echo "downloading spec/index.bs and LICENSE.md of gpuweb"
+  echo "downloading spec/index.bs, spec/sections/copies.bs and LICENSE.md of gpuweb"
   curl --fail --silent --show-error --location "$gpuweb/spec/index.bs" --output "$tmp_dir/index.bs"
+  curl --fail --silent --show-error --location "$gpuweb/spec/sections/copies.bs" --output "$tmp_dir/copies.bs"
   curl --fail --silent --show-error --location "$gpuweb/LICENSE.md" --output "$tmp_dir/LICENSE-gpuweb"
   {
     echo "// WebGPU WebIDL, extracted from the specification source of the W3C GPU for the Web Working Group."
-    echo "// Origin: https://github.com/gpuweb/gpuweb at commit $idl_commit (spec/index.bs)."
+    echo "// Origin: https://github.com/gpuweb/gpuweb at commit $idl_commit (spec/index.bs and spec/sections/copies.bs)."
     echo "//"
     echo "// Copyright (C) World Wide Web Consortium (Massachusetts Institute of Technology, European Research"
     echo "// Consortium for Informatics and Mathematics, Keio University, Beihang). All Rights Reserved."
@@ -73,7 +74,7 @@ if [ -n "$idl_commit" ]; then
       /<script type=idl[^>]*>/ { inside = 1; next }
       /<\/script>/ { if (inside) { inside = 0; print "" } ; next }
       inside { print }
-    ' "$tmp_dir/index.bs"
+    ' "$tmp_dir/index.bs" "$tmp_dir/copies.bs"
   } > "$tmp_dir/webgpu.idl"
   if ! grep -q 'interface GPUDevice' "$tmp_dir/webgpu.idl"; then
     echo "error: the extracted IDL looks empty" >&2

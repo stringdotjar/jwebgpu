@@ -1,5 +1,5 @@
 // WebGPU WebIDL, extracted from the specification source of the W3C GPU for the Web Working Group.
-// Origin: https://github.com/gpuweb/gpuweb at commit 4e829b310ba7381034b93b974eb1a6aabfb464f7 (spec/index.bs).
+// Origin: https://github.com/gpuweb/gpuweb at commit 4e829b310ba7381034b93b974eb1a6aabfb464f7 (spec/index.bs and spec/sections/copies.bs).
 //
 // Copyright (C) World Wide Web Consortium (Massachusetts Institute of Technology, European Research
 // Consortium for Informatics and Mathematics, Keio University, Beihang). All Rights Reserved.
@@ -1342,4 +1342,42 @@ dictionary GPUExtent3DDict {
     GPUIntegerCoordinate depthOrArrayLayers = 1;
 };
 typedef (sequence<GPUIntegerCoordinate> or GPUExtent3DDict) GPUExtent3D;
+
+dictionary GPUTexelCopyBufferLayout {
+    GPUSize64 offset = 0;
+    GPUSize32 bytesPerRow;
+    GPUSize32 rowsPerImage;
+};
+
+dictionary GPUTexelCopyBufferInfo
+         : GPUTexelCopyBufferLayout {
+    required GPUBuffer buffer;
+};
+
+dictionary GPUTexelCopyTextureInfo {
+    required GPUTexture texture;
+    GPUIntegerCoordinate mipLevel = 0;
+    GPUOrigin3D origin = {};
+    GPUTextureAspect aspect = "all";
+};
+
+dictionary GPUCopyExternalImageDestInfo
+         : GPUTexelCopyTextureInfo {
+    PredefinedColorSpace colorSpace = "srgb";
+    boolean premultipliedAlpha = false;
+};
+
+typedef (ImageBitmap or
+         ImageData or
+         HTMLImageElement or
+         HTMLVideoElement or
+         VideoFrame or
+         HTMLCanvasElement or
+         OffscreenCanvas) GPUCopyExternalImageSource;
+
+dictionary GPUCopyExternalImageSourceInfo {
+    required GPUCopyExternalImageSource source;
+    GPUOrigin2D origin = {};
+    boolean flipY = false;
+};
 

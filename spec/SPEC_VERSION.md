@@ -44,7 +44,7 @@ numbering and more. The generator's resolver mirrors those rules. When updating,
 | Date vendored | 2026-11-01 |
 
 The IDL is not published as a separate file upstream. It lives in `<script type=idl>` blocks inside
-`spec/index.bs` (the Bikeshed source of the specification), so `scripts/update_spec.sh` cuts those blocks out in
+`spec/index.bs` and `spec/sections/copies.bs` (the Bikeshed sources of the specification), so `scripts/update_spec.sh` cuts those blocks out in
 order and prepends a header that names the origin. The result is stable: the same commit always gives the same file.
 The pinned commit is the current development version of the specification, which is somewhat newer than what a
 browser ships. The web backend only calls members that the browser has, and a member that is missing in a browser
