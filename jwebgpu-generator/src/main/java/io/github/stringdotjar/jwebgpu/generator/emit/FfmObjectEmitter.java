@@ -54,7 +54,7 @@ final class FfmObjectEmitter {
     List<GpuFunction> normal = new ArrayList<>();
     List<GpuFunction> getters = new ArrayList<>();
     List<GpuFunction> all = new ArrayList<>();
-    for (GpuFunction f : o.methods()) {
+    for (GpuFunction f : FfmDescriptors.functions(o)) {
       all.add(f);
       if (FfmMethods.isMethod(f)) {
         (MethodWriter.isSimpleGetter(f) ? getters : normal).add(f);
@@ -169,12 +169,9 @@ final class FfmObjectEmitter {
     w.line("return \"ffm\";");
     w.close();
     w.blank();
-    List<GpuFunction> globals = new ArrayList<>();
-    for (GpuFunction f : spec.globalFunctions()) {
-      if (FfmMethods.isMethod(f)) {
-        methods.emit(w, f, false, false);
-        globals.add(f);
-      }
+    List<GpuFunction> globals = FfmDescriptors.globals(spec);
+    for (GpuFunction f : globals) {
+      methods.emit(w, f, false, false);
     }
     methods.emitFn(w, globals);
     w.close();

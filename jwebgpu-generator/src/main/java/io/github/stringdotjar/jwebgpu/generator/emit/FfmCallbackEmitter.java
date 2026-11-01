@@ -111,16 +111,12 @@ final class FfmCallbackEmitter {
     return new GeneratedFile(FfmNames.path("FfmCallbacks"), w.toSource());
   }
 
-  private static String method(Callback cb) {
+  static String method(Callback cb) {
     return "on" + Naming.pascal(cb.specName());
   }
 
   private String descriptor(Callback cb) {
-    List<String> layouts = new ArrayList<>();
-    for (Member m : cb.params()) {
-      layouts.add(FfmNames.layout(m.type(), m.role()));
-    }
-    return "FunctionDescriptor.ofVoid(" + String.join(", ", layouts) + ")";
+    return FfmDescriptors.of(cb).java();
   }
 
   private void emitDispatch(SourceWriter w, Callback cb, Set<String> readers) {

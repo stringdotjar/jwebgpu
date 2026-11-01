@@ -1,0 +1,24 @@
+{
+  "reflection": [
+    {
+      "type": "io.github.stringdotjar.jwebgpu.ffm.FfmCallbacks",
+      "methods": [
+        { "name": "onBufferMap", "parameterTypes": ["int", "java.lang.foreign.MemorySegment", "long", "long"] },
+        { "name": "onCompilationInfo", "parameterTypes": ["int", "long", "long", "long"] },
+        { "name": "onCreateComputePipelineAsync", "parameterTypes": ["int", "long", "java.lang.foreign.MemorySegment", "long", "long"] },
+        { "name": "onCreateRenderPipelineAsync", "parameterTypes": ["int", "long", "java.lang.foreign.MemorySegment", "long", "long"] },
+        { "name": "onDeviceLost", "parameterTypes": ["long", "int", "java.lang.foreign.MemorySegment", "long", "long"] },
+        { "name": "onPopErrorScope", "parameterTypes": ["int", "int", "java.lang.foreign.MemorySegment", "long", "long"] },
+        { "name": "onQueueWorkDone", "parameterTypes": ["int", "java.lang.foreign.MemorySegment", "long", "long"] },
+        { "name": "onRequestAdapter", "parameterTypes": ["int", "long", "java.lang.foreign.MemorySegment", "long", "long"] },
+        { "name": "onRequestDevice", "parameterTypes": ["int", "long", "java.lang.foreign.MemorySegment", "long", "long"] },
+        { "name": "onUncapturedError", "parameterTypes": ["long", "int", "java.lang.foreign.MemorySegment", "long", "long"] }
+      ]
+    }
+  ],
+  "foreign": {
+    "downcalls": [
+      { "returnType": "void", "parameterTypes": ["jlong", "jlong"] },
+      { "returnType": "jint", "parameterTypes": ["jlong", "jlong"] },
+      { "returnType": "jint", "parameterTypes": ["jlong", "jint"] },
+      { "returnType": "jlong", "parameterTypes": ["jlong", "jlong", "struct(jlong, jint, padding(4), jlong, jlong, jlong)"] },

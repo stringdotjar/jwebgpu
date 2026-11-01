@@ -124,7 +124,7 @@ final class FfmStructEmitter {
   }
 
   private void emitFree(SourceWriter w, Struct s) {
-    String cName = "wgpu" + s.cName().substring("WGPU".length()) + "FreeMembers";
+    String cName = FfmDescriptors.freeFunction(s);
     w.imp("java.lang.foreign.FunctionDescriptor");
     w.imp("java.lang.foreign.MemoryLayout");
     w.imp("java.lang.foreign.MemorySegment");
@@ -140,7 +140,7 @@ final class FfmStructEmitter {
     w.blank();
     w.doc("Holds the layout and the method handle of the C function.");
     w.open("private static final class Free");
-    w.line("static final StructLayout LAYOUT = " + layoutExpr(s.cName()) + ";");
+    w.line("static final StructLayout LAYOUT = " + FfmDescriptors.struct(spec, s.cName()).java() + ";");
     w.line("static final MethodHandle HANDLE = Native.handle(\"" + cName + "\", FunctionDescriptor.ofVoid(LAYOUT));");
     w.blank();
     w.open("static void call(MemorySegment view)");
@@ -151,44 +151,6 @@ final class FfmStructEmitter {
     w.close();
     w.close();
     w.close();
-  }
-
-  private String layoutExpr(String cName) {
-    Struct s = spec.struct(cName);
-    StructLayout layout = spec.layouts().of(cName);
-    StringBuilder sb = new StringBuilder("MemoryLayout.structLayout(");
-    long at = 0;
-    boolean first = true;
-    for (int i = 0; i < s.fields().size(); i++) {
-      Member m = s.fields().get(i);
-      long off = layout.offsets().get(i);
-      if (off > at) {
-        sb.append(first ? "" : ", ").append("MemoryLayout.paddingLayout(").append(off - at).append(')');
-        first = false;
-      }
-      CType t = m.type();
-      String part;
-      long size;
-      if (!t.isPointer() && t.kind() == TypeKind.STRUCT) {
-        part = layoutExpr(t.name());
-        size = spec.layouts().of(t.name()).size();
-      } else {
-        size = t.scalarSize();
-        part = switch ((int) size) {
-          case 8 -> "ValueLayout.JAVA_LONG";
-          case 4 -> "ValueLayout.JAVA_INT";
-          case 2 -> "ValueLayout.JAVA_SHORT";
-          default -> "ValueLayout.JAVA_BYTE";
-        };
-      }
-      sb.append(first ? "" : ", ").append(part);
-      first = false;
-      at = off + size;
-    }
-    if (layout.size() > at) {
-      sb.append(", MemoryLayout.paddingLayout(").append(layout.size() - at).append(')');
-    }
-    return sb.append(')').toString();
   }
 
   private static String field(Member m) {

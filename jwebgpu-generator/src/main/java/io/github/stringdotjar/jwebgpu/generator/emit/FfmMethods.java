@@ -109,17 +109,7 @@ final class FfmMethods {
   }
 
   private String descriptor(GpuFunction f) {
-    List<String> layouts = new ArrayList<>();
-    for (Member m : f.params()) {
-      layouts.add(FfmNames.layout(m.type(), m.role()));
-    }
-    if (f.returns() == null) {
-      return "FunctionDescriptor.ofVoid(" + String.join(", ", layouts) + ")";
-    }
-    String ret = FfmNames.layout(f.returns(), MemberRole.VALUE);
-    return layouts.isEmpty()
-        ? "FunctionDescriptor.of(" + ret + ")"
-        : "FunctionDescriptor.of(" + ret + ", " + String.join(", ", layouts) + ")";
+    return FfmDescriptors.of(f).java();
   }
 
   private void emitWrapper(SourceWriter w, GpuFunction f) {

@@ -105,17 +105,16 @@ final class FfmNames {
    *
    * @param t The C type.
    * @param role The role of the member.
-   * @return The source text of the layout, such as {@code ValueLayout.JAVA_LONG}.
+   * @return The layout, in both its Java and its native image spelling.
    */
-  static String layout(CType t, MemberRole role) {
-    String raw = raw(t, role);
-    return switch (raw) {
-      case "long" -> "ValueLayout.JAVA_LONG";
-      case "int" -> "ValueLayout.JAVA_INT";
-      case "short" -> "ValueLayout.JAVA_SHORT";
-      case "float" -> "ValueLayout.JAVA_FLOAT";
-      case "double" -> "ValueLayout.JAVA_DOUBLE";
-      default -> role == MemberRole.CALLBACK_INFO ? "Native.CALLBACK_INFO" : "Native.STRING_VIEW";
+  static FfmLayout shape(CType t, MemberRole role) {
+    return switch (raw(t, role)) {
+      case "long" -> FfmLayout.LONG;
+      case "int" -> FfmLayout.INT;
+      case "short" -> FfmLayout.SHORT;
+      case "float" -> FfmLayout.FLOAT;
+      case "double" -> FfmLayout.DOUBLE;
+      default -> role == MemberRole.CALLBACK_INFO ? FfmLayout.CALLBACK_INFO : FfmLayout.STRING_VIEW;
     };
   }
 
