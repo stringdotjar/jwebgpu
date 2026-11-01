@@ -26,6 +26,7 @@ package io.github.stringdotjar.jwebgpu.ffm;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -217,6 +218,25 @@ final class Mem {
         data.put(start + i, getByte(address + i));
       }
     }
+  }
+
+  /**
+   * Wraps a mapped buffer range as a {@link ByteBuffer}.
+   *
+   * <p>The buffer reads and writes the GPU's memory directly, so it is only valid until the GPU buffer is
+   * unmapped or destroyed. Using it afterwards is a mistake that can crash the process, just like in C.
+   *
+   * @param address The address the native library returned.
+   * @param size The size of the range in bytes.
+   * @param readOnly Whether the buffer must not be written.
+   * @return The buffer in native byte order, or {@code null} if the address is 0.
+   */
+  static ByteBuffer mapped(long address, long size, boolean readOnly) {
+    if (address == 0L) {
+      return null;
+    }
+    ByteBuffer buffer = ALL.asSlice(address, size).asByteBuffer().order(ByteOrder.nativeOrder());
+    return readOnly ? buffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder()) : buffer;
   }
 
   /**

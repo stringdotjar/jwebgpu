@@ -153,7 +153,7 @@ public final class SourceWriter {
    * @return This writer.
    */
   public SourceWriter open(String header) {
-    line(header + " {");
+    line(header.isEmpty() ? "{" : header + " {");
     level++;
     return this;
   }
@@ -178,6 +178,19 @@ public final class SourceWriter {
    */
   public SourceWriter close() {
     return close("");
+  }
+
+  /**
+   * Ends the current block and starts the next part of the same statement, for example {@code } else {}.
+   *
+   * @param keyword The text between the braces, such as {@code else} or {@code catch (Throwable e)}.
+   * @return This writer.
+   */
+  public SourceWriter middle(String keyword) {
+    level--;
+    line("} " + keyword + " {");
+    level++;
+    return this;
   }
 
   /**

@@ -119,6 +119,26 @@ final class Names {
   }
 
   /**
+   * Converts a camelCase name into an UPPER_SNAKE_CASE constant name.
+   *
+   * @param name A name such as {@code maxTextureDimension1D} or {@code QueueSubmit}.
+   * @return The constant name, such as {@code MAX_TEXTURE_DIMENSION1_D} or {@code QUEUE_SUBMIT}.
+   */
+  static String snake(String name) {
+    StringBuilder sb = new StringBuilder();
+    for (String token : WORD_BREAK.split(name)) {
+      if (token.isEmpty()) {
+        continue;
+      }
+      if (sb.length() > 0) {
+        sb.append('_');
+      }
+      sb.append(token.toUpperCase(Locale.ROOT));
+    }
+    return sb.toString();
+  }
+
+  /**
    * Splits a camelCase or snake_case name into lower-case words for use in prose.
    *
    * <p>Words that are acronyms or contain digits and capitals, such as {@code ID} or {@code 1D}, keep their case.
