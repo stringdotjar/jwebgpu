@@ -334,8 +334,15 @@ and run both in a headless Chrome with a software WebGPU adapter (no graphics ca
 ```
 
 The task needs Node.js 18 or newer and a Chrome or Chromium; it finds the browser on the `PATH`, or from the
-`JWEBGPU_CHROME` environment variable. **Without a browser the script prints `SKIPPED` and the task passes**, so CI
-machines without Chrome are fine. The flags that select the software adapter are in `scripts/run_browser_test.mjs`
+`JWEBGPU_CHROME` environment variable. **Without Node.js or a browser the task is skipped and passes**, so machines
+without Chrome are fine. To turn those skips into failures, pass `-Pjwebgpu.requireBrowser=true` (or set
+`JWEBGPU_REQUIRE_BROWSER=1` when you run `scripts/run_browser_test.mjs` yourself). CI does this in its "Browser test"
+job on `ubuntu-24.04`, so a runner without Chrome fails instead of quietly testing nothing. The job runs the JavaScript
+page (`js.html`) and the WasmGC page (`wasm.html`), prints every `PASS` and `FAIL` line of both, and uploads the
+console log as the `browser-console-log` artifact when it fails. The same log is written to
+`samples/web-triangle/build/browser-test/console.log` on every run (set `JWEBGPU_BROWSER_LOG` to choose another file).
+
+The flags that select the software adapter are in `scripts/run_browser_test.mjs`
 (`--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader
 --enable-unsafe-swiftshader --disable-vulkan-surface`); override them with `JWEBGPU_CHROME_FLAGS`. Drawing to a canvas
 needs the Vulkan flags: with only `--use-webgpu-adapter=swiftshader` the offscreen part works but the device is lost as
