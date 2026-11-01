@@ -261,8 +261,8 @@ vendored specification in `spec/` must come from the same revision (Dawn's `DEPS
 The JNI backend has two native parts: Dawn (a prebuilt library per ABI) and the C glue that Gradle generates and compiles
 with the NDK. It supports **arm64-v8a and x86_64** only, because the struct layouts assume 8-byte pointers.
 
-1. **Get the Dawn libraries.** CI builds them (`scripts/build_natives.sh android-arm64-v8a` and `android-x86_64`). Put each
-   one at `jwebgpu-jni/src/main/jniLibs/<abi>/libwebgpu_dawn.so`. That folder is gitignored. The libraries are built for
+1. **Get the Dawn libraries.** CI builds them, and `scripts/build_natives.sh android-arm64-v8a` (or `android-x86_64`) builds
+   one yourself and copies it to `jwebgpu-jni/src/main/jniLibs/<abi>/libwebgpu_dawn.so`. That folder is gitignored. The libraries are built for
    Android 8.0 (API 26) with Vulkan and the Null backend (OpenGL ES is switched off), and link the C++ runtime statically,
    so no `libc++_shared.so` is needed.
 2. **Enable the Android module** (see above) and build:
