@@ -155,31 +155,52 @@ final class NativeLoader {
 
   private static Path extract() {
     String resource = resource();
-    byte[] bytes;
-    try (InputStream in = NativeLoader.class.getClassLoader().getResourceAsStream(resource)) {
-      if (in == null) {
-        throw new IllegalStateException("No native library was found on the class path at " + resource + ". Add "
-            + "io.github.stringdotjar:jwebgpu-natives-" + os() + "-" + arch() + " to the runtime class path, or set -D"
-            + PROPERTY + "=/path/to/library.");
+    ClassLoader loader = NativeLoader.class.getClassLoader();
+    // The library is about 10 MB, so it is streamed through a small buffer and never held in memory: an application
+    // with a small heap must still be able to start. The first pass only hashes it, so a run that finds the library
+    // already in the cache writes nothing; the second pass copies it, and only happens the first time.
+    String hash;
+    long size;
+    try (InputStream in = open(loader, resource)) {
+      MessageDigest digest = sha256();
+      byte[] buffer = new byte[8192];
+      long total = 0L;
+      int read;
+      while ((read = in.read(buffer)) != -1) {
+        digest.update(buffer, 0, read);
+        total += read;
       }
-      bytes = in.readAllBytes();
+      hash = hex(digest.digest());
+      size = total;
     } catch (IOException e) {
       throw new UncheckedIOException("Cannot read " + resource, e);
     }
-    Path dir = cacheDir().resolve(hash(bytes));
+    Path dir = cacheDir().resolve(hash);
     Path target = dir.resolve(libraryName(os()));
     try {
-      if (Files.isRegularFile(target) && Files.size(target) == bytes.length) {
+      if (Files.isRegularFile(target) && Files.size(target) == size) {
         return target;
       }
       Files.createDirectories(dir);
       Path temp = Files.createTempFile(dir, "extract", ".tmp");
-      Files.write(temp, bytes);
+      try (InputStream in = open(loader, resource)) {
+        Files.copy(in, temp, StandardCopyOption.REPLACE_EXISTING);
+      }
       Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
       return target;
     } catch (IOException e) {
       throw new UncheckedIOException("Cannot extract the native library to " + dir, e);
     }
+  }
+
+  private static InputStream open(ClassLoader loader, String resource) {
+    InputStream in = loader.getResourceAsStream(resource);
+    if (in == null) {
+      throw new IllegalStateException("No native library was found on the class path at " + resource + ". Add "
+          + "io.github.stringdotjar:jwebgpu-natives-" + os() + "-" + arch() + " to the runtime class path, or set -D"
+          + PROPERTY + "=/path/to/library.");
+    }
+    return in;
   }
 
   private static Path cacheDir() {
@@ -207,16 +228,20 @@ final class NativeLoader {
     return Path.of(System.getProperty("java.io.tmpdir"), "jwebgpu-natives");
   }
 
-  private static String hash(byte[] bytes) {
+  private static MessageDigest sha256() {
     try {
-      byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
-      StringBuilder sb = new StringBuilder(16);
-      for (int i = 0; i < 8; i++) {
-        sb.append(Character.forDigit((digest[i] >> 4) & 0xF, 16)).append(Character.forDigit(digest[i] & 0xF, 16));
-      }
-      return sb.toString();
+      return MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  // The first 8 bytes of the digest as hex, enough to tell library builds apart.
+  private static String hex(byte[] digest) {
+    StringBuilder sb = new StringBuilder(16);
+    for (int i = 0; i < 8; i++) {
+      sb.append(Character.forDigit((digest[i] >> 4) & 0xF, 16)).append(Character.forDigit(digest[i] & 0xF, 16));
+    }
+    return sb.toString();
   }
 }
