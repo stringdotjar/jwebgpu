@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-  implementation("com.diffplug.spotless:spotless-plugin-gradle:8.6.0")
+  implementation("com.diffplug.spotless:spotless-plugin-gradle:8.10.4")
   implementation("com.vanniktech:gradle-maven-publish-plugin:0.33.0")
   implementation("com.android.tools.build:gradle:8.11.0")
 }
