@@ -106,7 +106,7 @@ align early than to submit a large pull request that needs to be substantially r
 
 # Versioning
 
-jwebgpu is in early development and is not published yet. Once published, it will be versioned at `0.x.x`. While we aim to be
+jwebgpu is in early development and is published to Maven Central as `0.x.x` versions. While we aim to be
 thoughtful about compatibility, **breaking changes can and will happen at any time during this phase**.
 Do not depend on any API being stable until the project reaches `1.0.0`.
 

@@ -3,6 +3,7 @@
   # jwebgpu
 
   [![CI](https://github.com/stringdotjar/jwebgpu/actions/workflows/ci_build.yml/badge.svg)](https://github.com/stringdotjar/jwebgpu/actions/workflows/ci_build.yml)
+  [![Maven Central](https://img.shields.io/maven-central/v/io.github.stringdotjar/jwebgpu-api)](https://central.sonatype.com/namespace/io.github.stringdotjar)
   [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![Java 25](https://img.shields.io/badge/Java-25-orange)](https://adoptium.net/temurin/releases?version=25&os=any&arch=any)
   [![Platforms](https://img.shields.io/badge/platforms-Desktop%20%7C%20Android%20%7C%20Web-brightgreen)](ARCHITECTURE.md)
@@ -23,9 +24,9 @@ refill every frame.
 jwebgpu is a standalone library with no dependencies on other projects, and it can be used by any Java program.
 
 > [!IMPORTANT]
-> **Status: early development.** jwebgpu is not published to Maven Central or JitPack yet. The generator, the API and
+> **Status: early development.** jwebgpu is published to Maven Central as `0.x` versions. The generator, the API and
 > the desktop (FFM), Android (JNI) and web (TeaVM) backends work and draw; the web backend is checked in headless Chrome on
-> a software adapter. Expect everything to change.
+> a software adapter. Until 1.0, a minor version may change the API.
 
 ## Modules
 
@@ -37,33 +38,60 @@ jwebgpu is a standalone library with no dependencies on other projects, and it c
 | `jwebgpu-jni` | Backend built on JNI, shipped as an Android library. | Android |
 | `jwebgpu-teavm` | Backend that wraps the browser's `navigator.gpu` using TeaVM. | Web |
 | `jwebgpu-generator` | Build-time tool that generates the API and the backends from the specs. Never published. | Build only |
-| `jwebgpu-test` | JUnit 5 tests. Never published. | Build only |
+| `jwebgpu-test` | JUnit 5 tests, plus the browser test of the web backend in `jwebgpu-test/browser`. Never published. | Build only |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit together.
 
 ## Using jwebgpu
 
-Until jwebgpu is published, consume it through a Gradle **composite build**. In your project's `settings.gradle.kts`,
-point at your local checkout:
+jwebgpu is on **Maven Central** under the group `io.github.stringdotjar`. Replace `<version>` below with the latest
+version shown by the badge at the top. Make sure `mavenCentral()` is in your repositories:
 
 ```kotlin
-includeBuild("../jwebgpu")
+repositories {
+  mavenCentral()
+}
 ```
 
-Then declare the dependencies with their normal coordinates. Gradle substitutes them with the local projects, so
-nothing changes in your build once jwebgpu is published:
+Every program needs `jwebgpu-api`, plus the backend of each platform it runs on. Your rendering code only uses the API,
+and only the platform's launcher touches the backend, so the backend can be a `runtimeOnly` dependency where the launcher
+lives in another module.
+
+**Desktop** (Windows, macOS, Linux):
 
 ```kotlin
 dependencies {
   implementation("io.github.stringdotjar:jwebgpu-api:<version>")
-  runtimeOnly("io.github.stringdotjar:jwebgpu-ffm:<version>") // Desktop. Use -jni on Android, -teavm on the web.
+  implementation("io.github.stringdotjar:jwebgpu-ffm:<version>")
 
-  // Desktop only: the Dawn library of every platform you ship to. Add just the ones you need.
+  // The Dawn library of every platform you ship to. Add just the ones you need.
   runtimeOnly("io.github.stringdotjar:jwebgpu-natives-linux-x86_64:<version>")
   runtimeOnly("io.github.stringdotjar:jwebgpu-natives-windows-x86_64:<version>")
   runtimeOnly("io.github.stringdotjar:jwebgpu-natives-macos-aarch64:<version>")
 }
 ```
+
+**Android** (an AAR, so the Android Gradle plugin picks up its native libraries and R8 rules):
+
+```kotlin
+dependencies {
+  implementation("io.github.stringdotjar:jwebgpu-api:<version>")
+  implementation("io.github.stringdotjar:jwebgpu-jni:<version>")
+}
+```
+
+**Web** (with the TeaVM Gradle plugin, version 0.13.0):
+
+```kotlin
+dependencies {
+  implementation("io.github.stringdotjar:jwebgpu-api:<version>")
+  implementation("io.github.stringdotjar:jwebgpu-teavm:<version>")
+}
+```
+
+To work on jwebgpu and a project that uses it at the same time, put `includeBuild("../jwebgpu")` in that project's
+`settings.gradle.kts`. Gradle then replaces the coordinates above with your local checkout, so nothing else in the build
+changes. See [COMPILING.md](COMPILING.md#using-a-local-checkout-from-another-project).
 
 The desktop libraries are big (about 5 to 11 MB each), so they live in one jar per platform instead of in
 `jwebgpu-ffm`. An application bundles only the platforms it ships to. The other available modules are
@@ -116,8 +144,8 @@ the metadata the native image builder needs, generated from the same specificati
   first run, exactly like a run on the JVM.
 
 You need **GraalVM for JDK 25 or newer** (Oracle GraalVM or GraalVM Community) on **Linux x86-64, Linux AArch64, Windows
-x86-64 or macOS AArch64**, because those are the platforms GraalVM supports for foreign calls. `samples/triangle-offscreen` is
-built this way in CI; see [COMPILING.md](COMPILING.md#building-a-graalvm-native-image).
+x86-64 or macOS AArch64**, because those are the platforms GraalVM supports for foreign calls. The unit tests check that
+the metadata lists exactly the functions and callbacks the backend uses.
 
 ### Running on Android
 
@@ -147,8 +175,7 @@ public void surfaceDestroyed(SurfaceHolder holder) {
 }
 ```
 
-The library ships R8 consumer rules, so shrinking an app does not break the native glue. `samples/android-triangle` is a
-small app that runs the backend on a device: see [COMPILING.md](COMPILING.md#building-the-android-backend) to build it.
+The library ships R8 consumer rules, so shrinking an app does not break the native glue.
 
 ### Running on the web
 
@@ -169,7 +196,7 @@ public static void main(String[] args) {
 Asynchronous calls (adapter, device, buffer mapping, pipelines in the background, error scopes) finish in their
 callbacks when the browser resolves the promise, so there is no `processEvents` to call and `waitAny` only polls. To draw
 to a `<canvas>`, chain a `TeaVmSurfaceSourceCanvas` onto the surface descriptor. The few calls that the browser cannot
-offer are listed in [ARCHITECTURE.md](ARCHITECTURE.md#the-web-backend); `samples/web-triangle` is a complete page.
+offer are listed in [ARCHITECTURE.md](ARCHITECTURE.md#the-web-backend).
 
 ### Garbage-free calls
 
@@ -181,19 +208,6 @@ encoder and a render pass, records state and a draw, uploads some floats and sub
 
 The scratch block of a thread grows when one call needs more than it holds and never shrinks by itself. After a rare, huge
 upload, call `JWebGpuFfm.trimScratch()` (or `JWebGpuJni.trimScratch()` on Android) on that thread to give the memory back.
-
-### Try it
-
-`samples/triangle-offscreen` draws a triangle into a texture that is never shown and prints the pixels as text:
-
-```bash
-./gradlew :samples:triangle-offscreen:run
-```
-
-The same sample builds as a GraalVM native image with `./gradlew :samples:triangle-offscreen:nativeCompile`.
-
-`samples/web-triangle` draws the same triangle in a browser, both off screen and on a canvas, and runs about thirty more
-checks of the web backend. Run it in a headless Chrome with `./gradlew :samples:web-triangle:browserTest`.
 
 ## Building
 

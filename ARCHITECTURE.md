@@ -65,7 +65,8 @@ The rules that shape this layout:
 ### Other directories
 
 - **`spec/`**: Vendored, pinned specification files and the notes on how to update them (`SPEC_VERSION.md`).
-- **`samples/`**: Small runnable examples for each platform. Not published.
+- **`jwebgpu-test/browser/`**: The browser test of the web backend: a small TeaVM program translated to JavaScript and
+  WasmGC and run in a headless Chrome by `browserTest`. Not published.
 - **`scripts/`**: Helper scripts, such as the ones that build the Dawn natives.
 - **`build-logic/`**: Gradle convention plugins (`jwebgpu.java-library`, `jwebgpu.android-library`, and so on) that every
   module applies, so the build rules cannot drift between modules.
@@ -387,8 +388,9 @@ jwebgpu uses **Gradle** with the **Kotlin DSL**.
 - **`gradle/libs.versions.toml`**: The version catalog.
 - **`build-logic/`**: The convention plugins, including Spotless, Checkstyle, Javadoc and Maven publishing rules.
 
-jwebgpu is not published yet. Other Gradle builds consume it through a composite build (`includeBuild("../jwebgpu")`), and the
-group (`io.github.stringdotjar`) and module names match the future Maven coordinates, so dependency substitution works without
+jwebgpu is published to Maven Central by the tag-triggered publish workflow (see
+[COMPILING.md](COMPILING.md#releasing-to-maven-central)). The group (`io.github.stringdotjar`) and module names are the Maven
+coordinates, so another build can also swap in a local checkout with a composite build (`includeBuild("../jwebgpu")`) without
 changing any declarations.
 
 ## GitHub Integration

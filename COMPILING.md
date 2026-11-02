@@ -1,8 +1,8 @@
 # Compiling & Testing
 
 jwebgpu is a library, not an application, so it is not run by itself. You build it and run its unit tests from this
-repository, and you try it out in a separate project that consumes it through a Gradle composite build. This guide walks
-you through every step from a clean machine.
+repository, and you try changes out in a separate project that uses your local checkout through a Gradle composite build.
+This guide walks you through every step from a clean machine, and ends with how a release reaches Maven Central.
 
 ---
 
@@ -17,7 +17,7 @@ you through every step from a clean machine.
 7. [Native libraries (Dawn)](#native-libraries-dawn)
 8. [Building the Android backend](#building-the-android-backend)
 9. [Building and testing the web backend](#building-and-testing-the-web-backend)
-10. [Building a GraalVM native image](#building-a-graalvm-native-image)
+10. [Releasing to Maven Central](#releasing-to-maven-central)
 11. [Troubleshooting](#troubleshooting)
 
 ---
@@ -114,19 +114,21 @@ To test another build of the library, pass `-Pjwebgpu.library=/path/to/libwebgpu
 
 ## Using a local checkout from another project
 
-jwebgpu is not published yet, so other projects use it through a **Gradle composite build**. In the
-consuming project's `settings.gradle.kts`:
+Projects normally get jwebgpu from Maven Central (see the [README](README.md#using-jwebgpu)). To try changes to jwebgpu in
+another project before they are released, use a **Gradle composite build**. In the consuming project's
+`settings.gradle.kts`:
 
 ```kotlin
 includeBuild("../jwebgpu")
 ```
 
-Use the normal coordinates in the dependencies; Gradle substitutes the local projects automatically:
+Keep the normal Maven Central coordinates in the dependencies; Gradle substitutes the local projects automatically, and
+removing the `includeBuild` line switches back to the published version:
 
 ```kotlin
 dependencies {
   implementation("io.github.stringdotjar:jwebgpu-api:<version>")
-  runtimeOnly("io.github.stringdotjar:jwebgpu-ffm:<version>")
+  implementation("io.github.stringdotjar:jwebgpu-ffm:<version>")
 
   // The Dawn library of each desktop platform you ship to, one module per target.
   runtimeOnly("io.github.stringdotjar:jwebgpu-natives-linux-x86_64:<version>")
@@ -292,16 +294,9 @@ with the NDK. It supports **arm64-v8a and x86_64** only, because the struct layo
    | `-Pjwebgpu.dawnInclude=/path/to/dir` | The directory that contains `webgpu.h`. The default is the vendored `spec/` directory. Point it at the include directory of a particular Dawn build to compile against its header: the glue checks every struct layout it uses at compile time, so a header that differs from the specification fails the build. |
    | `-Pjwebgpu.fastNative=false` | Generate plain `native` methods instead of ART's `@FastNative`, for example to measure what the annotation saves. |
 
-The sample app `samples/android-triangle` runs the backend on a device. It is a release build (not debuggable, shrunk with
-R8, signed with the debug key so it installs), and it reports to logcat:
-
-```bash
-./gradlew -PincludeAndroid=true :samples:android-triangle:assembleRelease
-adb install -r samples/android-triangle/build/outputs/apk/release/android-triangle-release.apk
-adb shell am start -n io.github.stringdotjar.jwebgpu.samples.android/.MainActivity
-adb logcat -s jwebgpu          # ends with "RESULT OK" and "ALL DONE"
-adb uninstall io.github.stringdotjar.jwebgpu.samples.android
-```
+To try the backend on a device, use the AAR from an app of your own through a composite build (see
+[Using a local checkout from another project](#using-a-local-checkout-from-another-project)), with `includeAndroid=true` in
+jwebgpu's `local.properties`.
 
 ### Testing the JNI backend on the desktop
 
@@ -322,16 +317,18 @@ Vulkan run works the same way as for the FFM backend (`VK_ICD_FILENAMES=... ./gr
 WebIDL (`spec/webgpu.idl`) next to `spec/webgpu.json` and writes the browser interfaces, the descriptor marshallers and the
 object classes. TeaVM is pinned to **0.13.0**.
 
-`samples/web-triangle` is the program that proves it works. Translate it to JavaScript and to WasmGC and collect the pages:
+The browser test in `jwebgpu-test/browser` proves it works. It is a small test program, never published: it draws a
+triangle off screen and on a canvas and runs about thirty more checks of the web backend. Translate it to JavaScript and
+to WasmGC and collect the pages:
 
 ```bash
-./gradlew :samples:web-triangle:webDist      # build/web/{js.html,wasm.html,app.js,app.wasm,...}
+./gradlew :jwebgpu-test:browser:webDist      # build/web/{js.html,wasm.html,app.js,app.wasm,...}
 ```
 
 and run both in a headless Chrome with a software WebGPU adapter (no graphics card needed):
 
 ```bash
-./gradlew :samples:web-triangle:browserTest
+./gradlew :jwebgpu-test:browser:browserTest
 ```
 
 The task needs Node.js 18 or newer and a Chrome or Chromium; it finds the browser on the `PATH`, or from the
@@ -341,7 +338,7 @@ without Chrome are fine. To turn those skips into failures, pass `-Pjwebgpu.requ
 job on `ubuntu-24.04`, so a runner without Chrome fails instead of quietly testing nothing. The job runs the JavaScript
 page (`js.html`) and the WasmGC page (`wasm.html`), prints every `PASS` and `FAIL` line of both, and uploads the
 console log as the `browser-console-log` artifact when it fails. The same log is written to
-`samples/web-triangle/build/browser-test/console.log` on every run (set `JWEBGPU_BROWSER_LOG` to choose another file).
+`jwebgpu-test/browser/build/browser-test/console.log` on every run (set `JWEBGPU_BROWSER_LOG` to choose another file).
 
 The flags that select the software adapter are in `scripts/run_browser_test.mjs`
 (`--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader
@@ -350,37 +347,62 @@ needs the Vulkan flags: with only `--use-webgpu-adapter=swiftshader` the offscre
 soon as a canvas texture is used.
 
 To look at the page yourself, serve `build/web` over `http://localhost` (WebGPU needs a secure context and a WasmGC
-module cannot load from `file://`), for example with `python3 -m http.server --directory samples/web-triangle/build/web`.
+module cannot load from `file://`), for example with `python3 -m http.server --directory jwebgpu-test/browser/build/web`.
 
-## Building a GraalVM native image
+## Releasing to Maven Central
 
-`samples/triangle-offscreen` is built as a native image to prove that the desktop backend needs no native image configuration of
-its own. It uses the GraalVM Gradle plugin (`org.graalvm.buildtools.native`) and nothing else: the metadata comes from the
-`jwebgpu-ffm` and `jwebgpu-natives-<target>` jars (see [ARCHITECTURE.md](ARCHITECTURE.md#graalvm-native-image-metadata)).
+Releases are published by the **Publish to Maven Central** workflow (`.github/workflows/publish.yml`) when a version tag is
+pushed. Nothing is published from a developer's machine, and no secret is ever stored in the repository or in a local file.
 
-1. Install **GraalVM for JDK 25 or newer** (for example Oracle GraalVM from
-   [graalvm.org](https://www.graalvm.org/downloads/)) and a C toolchain (`gcc` and the `zlib` headers on Linux).
-2. Make sure the Dawn library of your machine is in place (see [Native libraries](#native-libraries-dawn)), because the image
-   embeds it.
-3. Run the build with Gradle pointed at the GraalVM installation:
+### One-time setup (maintainers)
 
-```bash
-./gradlew -Porg.gradle.java.installations.paths=/path/to/graalvm-jdk-25 :samples:triangle-offscreen:nativeCompile
-```
+1. **Central Portal account.** Sign in at [central.sonatype.com](https://central.sonatype.com) with the GitHub account that
+   owns the repository. Signing in with GitHub verifies the `io.github.stringdotjar` namespace automatically.
+2. **Publishing token.** In the portal, open your account and choose **Generate User Token**. It gives a username and a
+   password, which are not your login.
+3. **Signing key.** Maven Central requires every file to be signed. Create a key (choose **RSA (sign only)** with 4096
+   bits) and publish its public half so Central can check the signatures:
 
-   (Do not commit that path anywhere. Setting `JAVA_HOME` to the GraalVM installation works as well.) The build takes a few
-   minutes and writes `samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen`.
-4. Run it. With no argument it draws the triangle on the first real adapter; with `null` it uses Dawn's Null backend, which
-   needs no graphics card and draws nothing:
+   ```bash
+   gpg --full-generate-key
+   gpg --keyserver keyserver.ubuntu.com --send-keys <FINGERPRINT>
+   ```
 
-```bash
-samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen
-samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen null
-```
+4. **Repository secrets.** Add five secrets under the repository's **Settings > Secrets and variables > Actions**, or with
+   the GitHub CLI. Piping the values in keeps them out of your shell history and off the disk:
 
-CI builds the image on Linux and runs it on the Null backend in its "Native image" job. If the native image builder ever
-reports a missing foreign registration (a `MissingForeignRegistrationError` at run time), fix the generator
-(`GraalEmitter`), never the sample: the metadata must come from the jars.
+   | Secret | Value |
+   |--------|-------|
+   | `MAVEN_USERNAME` | The token username from step 2. |
+   | `MAVEN_PASSWORD` | The token password from step 2. |
+   | `SIGNING_KEY_ID` | The last 8 characters of the key's fingerprint. |
+   | `SIGNING_KEY` | The ASCII-armored private key (the command below). |
+   | `SIGNING_PASSWORD` | The key's passphrase. |
+
+   ```bash
+   gpg --armor --export-secret-keys <KEY_ID> | gh secret set SIGNING_KEY -R stringdotjar/jwebgpu
+   gh secret set SIGNING_KEY_ID -R stringdotjar/jwebgpu     # prompts for the value
+   ```
+
+### Making a release
+
+1. Make sure the latest **Build Natives** run on `master` succeeded. The publish job copies the Dawn libraries from that
+   run into the `jwebgpu-natives-<target>` jars and the Android AAR, and publishing fails rather than ship a jar without its
+   library.
+2. Tag the commit and push the tag. The version comes from the tag: `v0.1.0` publishes `0.1.0`.
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+3. The workflow runs Spotless and the unit tests, then signs and uploads every module: `jwebgpu-api`, `jwebgpu-ffm`,
+   `jwebgpu-teavm`, `jwebgpu-jni` and the six `jwebgpu-natives-<target>` jars.
+4. The upload is not released automatically. Open **Deployments** in the Central Portal, check the deployment, and press
+   **Publish**. The new version appears on Maven Central within about half an hour.
+
+JitPack is not supported: it builds from the repository alone, and the Dawn libraries are only built on GitHub Actions, so
+the natives jars and the Android AAR cannot be built there.
 
 ## Troubleshooting
 

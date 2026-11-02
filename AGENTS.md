@@ -12,9 +12,10 @@ The bindings are **generated** from vendored, pinned specifications (`spec/`) by
 (`jwebgpu-generator`), so the three backends cannot drift apart. See [ARCHITECTURE.md](ARCHITECTURE.md).
 
 jwebgpu is a standalone library. It **never depends on or refers to any other project** and must stay usable by any
-Java program. Until jwebgpu is published, other projects use it through a Gradle composite build.
+Java program. Other projects get it from Maven Central (`io.github.stringdotjar:jwebgpu-*`), or from a local checkout
+through a Gradle composite build while they test unreleased changes.
 
-The project is in early development and is not published yet.
+The project is in early development and is published as `0.x` versions, so its API may still change.
 
 ---
 
