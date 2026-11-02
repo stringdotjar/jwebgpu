@@ -21,21 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package io.github.stringdotjar.jwebgpu.samples.web;
+package io.github.stringdotjar.jwebgpu.browser;
 
 /**
- * The entry point of the web samples: the triangle, then the feature checks.
+ * The entry point of the browser test: the triangle, then the feature checks.
  *
- * <p>The same code translates to JavaScript and to WasmGC: nothing in it knows which one it is. Open
- * {@code js.html} or {@code wasm.html} from the {@code webDist} folder, or let {@code browserTest} do it in a headless
- * browser.
+ * <p>This is a test of the web backend, not a published example. The same code translates to JavaScript and to WasmGC:
+ * nothing in it knows which one it is. {@code ./gradlew :jwebgpu-test:browser:browserTest} opens {@code js.html} and
+ * {@code wasm.html} in a headless Chrome and checks what they report; the pages can also be opened by hand from
+ * {@code build/web} after {@code webDist}.
  */
-public final class WebSamples {
+public final class BrowserTest {
 
-  private WebSamples() {}
+  private BrowserTest() {}
 
   /**
-   * Starts the samples.
+   * Starts the test.
    *
    * @param args Not used.
    */

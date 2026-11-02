@@ -1,3 +1,5 @@
+// The browser test: the web backend translated to JavaScript and WasmGC, run in a headless Chrome. It is a test, so it
+// is never published.
 plugins {
   id("jwebgpu.java-base")
   java
@@ -18,7 +20,7 @@ dependencies {
 
 teavm {
   all {
-    mainClass = "io.github.stringdotjar.jwebgpu.samples.web.WebSamples"
+    mainClass = "io.github.stringdotjar.jwebgpu.browser.BrowserTest"
   }
   js {
     addedToWebApp = true
@@ -46,7 +48,7 @@ val webDist = tasks.register<Sync>("webDist") {
 // goes to build/browser-test/console.log.
 tasks.register<Exec>("browserTest") {
   group = "verification"
-  description = "Runs the JavaScript and WasmGC translations of the sample in headless Chrome."
+  description = "Runs the JavaScript and WasmGC translations of the browser test in headless Chrome."
   dependsOn(webDist)
   val require = providers.gradleProperty("jwebgpu.requireBrowser").map { it.toBoolean() }.getOrElse(false)
   val log = layout.buildDirectory.file("browser-test/console.log").get().asFile

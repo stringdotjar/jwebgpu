@@ -1,6 +1,5 @@
 [versions]
 agp = "8.11.0"
-graalvmNative = "1.1.18"
 jetbrainsAnnotations = "26.1.0"
 junit = "5.10.0"
 spotless = "8.6.0"
@@ -20,7 +19,6 @@ teavm-jso-apis = { module = "org.teavm:teavm-jso-apis", version.ref = "teavm" }
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvmNative" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 teavm = { id = "org.teavm", version.ref = "teavm" }
 vanniktech = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech" }

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package io.github.stringdotjar.jwebgpu.samples.web;
+package io.github.stringdotjar.jwebgpu.browser;
 
 import io.github.stringdotjar.jwebgpu.GpuAdapterInfo;
 import io.github.stringdotjar.jwebgpu.GpuBindGroup;

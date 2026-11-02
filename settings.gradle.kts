@@ -3,7 +3,7 @@ import java.util.Properties
 /**
  * Root settings for the jwebgpu multi-module build.
  *
- * <p>Declares the build-logic included build so convention plugins are available to all
+ * Declares the build-logic included build so convention plugins are available to all
  * subprojects, centralizes repository declarations, and conditionally includes the Android
  * module when the Android SDK is present.
  */
@@ -68,8 +68,7 @@ include(
   "jwebgpu-ffm",
   "jwebgpu-teavm",
   "jwebgpu-test",
-  "samples:triangle-offscreen",
-  "samples:web-triangle"
+  "jwebgpu-test:browser",
 )
 
 // One module per desktop target holds that target's Dawn library, so an application only bundles the platforms it
@@ -86,5 +85,4 @@ for (target in nativeTargets) {
 
 if (includeAndroid) {
   include("jwebgpu-jni")
-  include("samples:android-triangle")
 }

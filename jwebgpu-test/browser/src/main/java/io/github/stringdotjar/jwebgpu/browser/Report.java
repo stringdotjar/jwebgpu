@@ -21,12 +21,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package io.github.stringdotjar.jwebgpu.samples.web;
+package io.github.stringdotjar.jwebgpu.browser;
 
 import org.teavm.jso.JSBody;
 
 /**
- * Collects the results of the checks that the sample pages run, and prints them to the browser console.
+ * Collects the results of the checks that the test pages run, and prints them to the browser console.
  *
  * <p>The headless browser test reads the console, so every line here is part of the test protocol: a failed check
  * prints {@code FAIL}, and {@link #finish()} prints {@code RESULT all PASS} (or the number of failures) followed by the

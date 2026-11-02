@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package io.github.stringdotjar.jwebgpu.samples.web;
+package io.github.stringdotjar.jwebgpu.browser;
 
 import org.teavm.jso.browser.Window;
 
@@ -38,7 +38,7 @@ import io.github.stringdotjar.jwebgpu.teavm.JWebGpuTeaVm;
 import java.util.function.Consumer;
 
 /**
- * The shared GPU objects of the sample pages: the instance, the adapter, the device and its queue.
+ * The shared GPU objects of the test pages: the instance, the adapter, the device and its queue.
  *
  * <p>The browser cannot block, so {@link #open(Report, Consumer)} asks for the adapter and the device with callbacks and
  * calls {@code ready} once everything is there.
