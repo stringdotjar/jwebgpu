@@ -235,13 +235,28 @@ jobs:
         shell: bash
 
   native-image:
-    name: Native image (GraalVM, linux)
-    runs-on: ubuntu-latest
+    name: Native image (GraalVM, ${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # GraalVM's native image only supports foreign function calls on these four platforms. Intel macOS and Windows
+        # on ARM are left out because native images cannot call into Dawn there at all.
+        include:
+          - target: linux-x86_64
+            os: ubuntu-latest
+          - target: linux-aarch64
+            os: ubuntu-24.04-arm
+          - target: macos-aarch64
+            os: macos-latest
+          - target: windows-x86_64
+            os: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up GraalVM for JDK 25
+        # On Windows this also sets up the Visual Studio tools native-image needs.
         uses: graalvm/setup-graalvm@v1
         with:
           java-version: '25'
@@ -253,6 +268,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Grant execute permission for gradlew
+        if: runner.os != 'Windows'
         run: chmod +x gradlew
 
       - name: Download the Dawn library
@@ -262,8 +278,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           run_id="$(gh run list --workflow natives.yml --branch master --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
-          gh run download "${run_id}" --name dawn-linux-x86_64 --dir jwebgpu-natives/linux-x86_64/src/main/resources/natives/linux-x86_64
-          ls -l jwebgpu-natives/linux-x86_64/src/main/resources/natives/linux-x86_64
+          dir="jwebgpu-natives/${{ matrix.target }}/src/main/resources/natives/${{ matrix.target }}"
+          gh run download "${run_id}" --name "dawn-${{ matrix.target }}" --dir "${dir}"
+          ls -l "${dir}"
         shell: bash
 
       - name: Build the sample as a native image
@@ -272,9 +289,13 @@ jobs:
         shell: bash
 
       - name: Run the native image on Dawn's Null backend
-        # The runner has no graphics card, so the Null backend runs every call without drawing anything.
+        # The runners have no graphics card, so the Null backend runs every call without drawing anything.
         run: |
-          out="$(samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen null)"
+          exe=samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen
+          if [ -f "${exe}.exe" ]; then
+            exe="${exe}.exe"
+          fi
+          out="$("${exe}" null)"
           echo "${out}"
           echo "${out}" | grep -q "(NULL)"
         shell: bash
