@@ -23,6 +23,8 @@
  */
 package io.github.stringdotjar.jwebgpu.samples.web;
 
+import org.teavm.jso.browser.Window;
+
 import io.github.stringdotjar.jwebgpu.GpuAdapter;
 import io.github.stringdotjar.jwebgpu.GpuAdapterInfo;
 import io.github.stringdotjar.jwebgpu.GpuCallbackMode;
@@ -43,6 +45,11 @@ import java.util.function.Consumer;
  */
 final class Context {
 
+  // Chrome can answer the very first adapter request with null while its GPU connection is still starting (it logs
+  // "A valid external Instance reference no longer exists"). WebGPU allows that, so the request is tried again.
+  private static final int ADAPTER_ATTEMPTS = 5;
+  private static final int ADAPTER_RETRY_MS = 250;
+
   final Report report;
   final GpuAdapterInfo info = new GpuAdapterInfo();
 
@@ -60,16 +67,25 @@ final class Context {
     JWebGpuTeaVm.install();
     Context ctx = new Context(report);
     ctx.instance = JWebGpu.createInstance();
-    ctx.instance.requestAdapter(null, GpuCallbackMode.ALLOW_SPONTANEOUS, (status, result, message) -> {
+    ctx.requestAdapter(ready, 1);
+  }
+
+  private void requestAdapter(Consumer<Context> ready, int attempt) {
+    instance.requestAdapter(null, GpuCallbackMode.ALLOW_SPONTANEOUS, (status, result, message) -> {
       if (result == null) {
-        report.fail("No adapter (" + status + "): " + message);
+        if (attempt < ADAPTER_ATTEMPTS) {
+          Report.log("No adapter yet (" + status + "), trying again (attempt " + (attempt + 1) + ")");
+          Window.setTimeout(() -> requestAdapter(ready, attempt + 1), ADAPTER_RETRY_MS);
+          return;
+        }
+        report.fail("No adapter (" + status + ") after " + ADAPTER_ATTEMPTS + " attempts: " + message);
         report.finish();
         return;
       }
-      ctx.adapter = result;
-      ctx.adapter.getInfo(ctx.info);
-      Report.log("Adapter: " + ctx.info.vendor + " / " + ctx.info.architecture + " (" + ctx.info.backendType + ")");
-      ctx.requestDevice(ready);
+      adapter = result;
+      adapter.getInfo(info);
+      Report.log("Adapter: " + info.vendor + " / " + info.architecture + " (" + info.backendType + ")");
+      requestDevice(ready);
     });
   }
 
