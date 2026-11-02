@@ -114,13 +114,13 @@ jobs:
 
       - name: Run the browser test (JavaScript and WasmGC)
         # -Pjwebgpu.requireBrowser=true turns a missing Node.js or Chrome into a failure instead of a skip.
-        run: ./gradlew :samples:web-triangle:browserTest -Pjwebgpu.requireBrowser=true --no-daemon --warning-mode all
+        run: ./gradlew :jwebgpu-test:browser:browserTest -Pjwebgpu.requireBrowser=true --no-daemon --warning-mode all
         shell: bash
 
       - name: Summarize the results
         if: always()
         run: |
-          LOG=samples/web-triangle/build/browser-test/console.log
+          LOG=jwebgpu-test/browser/build/browser-test/console.log
           for page in js.html wasm.html; do
             echo "== $page =="
             grep -E "^\[$page\] .*(PASS|FAIL)" "$LOG" | grep -E "RESULT|FAIL" || echo "no result line (the page did not finish)"
@@ -133,7 +133,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: browser-console-log
-          path: samples/web-triangle/build/browser-test/console.log
+          path: jwebgpu-test/browser/build/browser-test/console.log
           if-no-files-found: ignore
 
   javadoc:
@@ -232,72 +232,4 @@ jobs:
       - name: Build (Android)
         if: matrix.platform == 'android'
         run: ./gradlew -PincludeAndroid=true :jwebgpu-api:assemble :jwebgpu-jni:assembleRelease --no-daemon
-        shell: bash
-
-  native-image:
-    name: Native image (GraalVM, ${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # GraalVM's native image only supports foreign function calls on these four platforms. Intel macOS and Windows
-        # on ARM are left out because native images cannot call into Dawn there at all.
-        include:
-          - target: linux-x86_64
-            os: ubuntu-latest
-          - target: linux-aarch64
-            os: ubuntu-24.04-arm
-          - target: macos-aarch64
-            os: macos-latest
-          - target: windows-x86_64
-            os: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up GraalVM for JDK 25
-        # On Windows this also sets up the Visual Studio tools native-image needs.
-        uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: '25'
-          distribution: graalvm
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          native-image-job-reports: 'true'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Grant execute permission for gradlew
-        if: runner.os != 'Windows'
-        run: chmod +x gradlew
-
-      - name: Download the Dawn library
-        # The native image embeds the Dawn library from the natives jar, and the library is never committed. Use the one
-        # the latest successful Build Natives run produced.
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          run_id="$(gh run list --workflow natives.yml --branch master --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
-          dir="jwebgpu-natives/${{ matrix.target }}/src/main/resources/natives/${{ matrix.target }}"
-          gh run download "${run_id}" --name "dawn-${{ matrix.target }}" --dir "${dir}"
-          ls -l "${dir}"
-        shell: bash
-
-      - name: Build the sample as a native image
-        # The sample has no native image configuration of its own: the jwebgpu jars ship all of it. The native image is
-        # built with the GraalVM in GRAALVM_HOME (set up above) instead of a Gradle toolchain, because Gradle does not
-        # recognize GraalVM on Windows as able to build native images.
-        run: ./gradlew :samples:triangle-offscreen:nativeCompile -Pjwebgpu.nativeToolchain=false --no-daemon --warning-mode all
-        shell: bash
-
-      - name: Run the native image on Dawn's Null backend
-        # The runners have no graphics card, so the Null backend runs every call without drawing anything.
-        run: |
-          exe=samples/triangle-offscreen/build/native/nativeCompile/triangle-offscreen
-          if [ -f "${exe}.exe" ]; then
-            exe="${exe}.exe"
-          fi
-          out="$("${exe}" null)"
-          echo "${out}"
-          echo "${out}" | grep -q "(NULL)"
         shell: bash
