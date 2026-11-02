@@ -284,14 +284,10 @@ jobs:
         shell: bash
 
       - name: Build the sample as a native image
-        # The sample has no native image configuration of its own: the jwebgpu jars ship all of it. Gradle is pointed
-        # at the GraalVM installed above, with detection and downloads off, because otherwise it can pick a Temurin JDK
-        # from the restored cache for the native image toolchain (it did on Windows).
-        run: |
-          ./gradlew :samples:triangle-offscreen:nativeCompile --no-daemon --warning-mode all \
-            "-Porg.gradle.java.installations.paths=${GRAALVM_HOME}" \
-            -Porg.gradle.java.installations.auto-detect=false \
-            -Porg.gradle.java.installations.auto-download=false
+        # The sample has no native image configuration of its own: the jwebgpu jars ship all of it. The native image is
+        # built with the GraalVM in GRAALVM_HOME (set up above) instead of a Gradle toolchain, because Gradle does not
+        # recognize GraalVM on Windows as able to build native images.
+        run: ./gradlew :samples:triangle-offscreen:nativeCompile -Pjwebgpu.nativeToolchain=false --no-daemon --warning-mode all
         shell: bash
 
       - name: Run the native image on Dawn's Null backend

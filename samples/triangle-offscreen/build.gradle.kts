@@ -28,13 +28,22 @@ application {
 // A GraalVM native image of the sample: ./gradlew :samples:triangle-offscreen:nativeCompile. It needs nothing but the
 // dependencies above, because the jwebgpu jars ship all the metadata a native image needs. The build runs on a GraalVM
 // for JDK 25 (point Gradle at one with -Porg.gradle.java.installations.paths=/path/to/graalvm, or set JAVA_HOME).
+//
+// -Pjwebgpu.nativeToolchain=false skips Gradle's toolchain lookup and uses the GraalVM in GRAALVM_HOME instead. CI uses
+// it because Gradle does not recognize GraalVM on Windows as able to build native images (the tool is native-image.cmd
+// there, not an executable).
+val nativeToolchain = providers.gradleProperty("jwebgpu.nativeToolchain").map { it.toBoolean() }.getOrElse(true)
+
 graalvmNative {
+  toolchainDetection = nativeToolchain
   binaries {
     named("main") {
       imageName = "triangle-offscreen"
-      javaLauncher = javaToolchains.launcherFor {
-        languageVersion = JavaLanguageVersion.of(25)
-        nativeImageCapable = true
+      if (nativeToolchain) {
+        javaLauncher = javaToolchains.launcherFor {
+          languageVersion = JavaLanguageVersion.of(25)
+          nativeImageCapable = true
+        }
       }
     }
   }
