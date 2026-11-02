@@ -85,7 +85,7 @@ public final class Generator {
    *
    * @param args The command line arguments, see the class description.
    */
-  public static void main(String[] args) {
+  static void main(String[] args) {
     String spec = DEFAULT_SPEC;
     String emit = null;
     String out = null;
