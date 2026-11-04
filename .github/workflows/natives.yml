@@ -81,7 +81,7 @@ jobs:
         run: ./scripts/build_natives.sh ${{ matrix.target }}
 
       - name: Upload the library
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dawn-${{ matrix.target }}
           path: jwebgpu-natives/${{ matrix.target }}/src/main/resources/natives/${{ matrix.target }}/*
@@ -166,7 +166,7 @@ jobs:
         run: ./scripts/build_natives.sh ${{ matrix.target }}
 
       - name: Upload the library
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dawn-${{ matrix.target }}
           path: jwebgpu-natives/${{ matrix.target }}/src/main/resources/natives/${{ matrix.target }}/*
@@ -232,7 +232,7 @@ jobs:
         run: ./scripts/build_natives.sh ${{ matrix.target }}
 
       - name: Upload the library
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dawn-${{ matrix.target }}
           path: jwebgpu-jni/src/main/jniLibs/${{ matrix.abi }}/*
@@ -265,7 +265,7 @@ jobs:
           find bundle -type f -exec ls -l {} \;
 
       - name: Upload the bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dawn-natives-all
           path: bundle/
