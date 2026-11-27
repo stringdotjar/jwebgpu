@@ -53,7 +53,13 @@ final class FfmCallbackEmitter {
       String where = "(" + at + ") + " + offsets.get(i) + "L";
       switch (f.name()) {
         case "nextInChain" -> w.line("Mem.putLong(" + where + ", 0L);");
-        case "mode" -> w.line("Mem.putInt(" + where + ", " + mode + " == null ? 0 : " + mode + ".value);");
+        case "mode" -> {
+          // A null mode would be written as 0, which is not a valid WGPUCallbackMode, so it falls back to
+          // ALLOW_PROCESS_EVENTS.
+          w.imp(Names.pkg() + ".GpuCallbackMode");
+          w.line("Mem.putInt(" + where + ", (" + mode + " == null ? GpuCallbackMode.ALLOW_PROCESS_EVENTS : " + mode
+              + ").value);");
+        }
         case "callback" -> w.line("Mem.putLong(" + where + ", FfmCallbacks." + stub(cb) + ");");
         case "userdata1" -> w.line("Mem.putLong(" + where + ", CallbackTable.put(" + callback + "));");
         case "userdata2" -> w.line("Mem.putLong(" + where + ", 0L);");

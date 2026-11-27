@@ -296,8 +296,9 @@ final class StructEmitter {
     if (cb.style() == CallbackStyle.CALLBACK_MODE) {
       String modeName = base + "Mode";
       plan.fields.add(new Field("GpuCallbackMode", modeName, 1, false, null, true,
-          "When {@link #" + callbackName + "} may run.\n\n<p>Set this whenever you set the callback. A {@code null} "
-              + "mode is passed to the native library as 0, which is not a valid mode."));
+          "When {@link #" + callbackName + "} may run.\n\n<p>Set this whenever you set the callback. When it is "
+              + "{@code null}, the backend uses {@link GpuCallbackMode#ALLOW_PROCESS_EVENTS}, so the callback runs "
+              + "inside {@link GpuInstance#processEvents()} or {@link GpuInstance#waitAny}."));
       plan.resets.add(modeName + " = null;");
     }
   }
