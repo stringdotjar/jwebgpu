@@ -1,0 +1,13 @@
+--- a/src/dawn/native/opengl/BackendGL.cpp
++++ b/src/dawn/native/opengl/BackendGL.cpp
+@@ -55,7 +55,9 @@
+ #elif DAWN_PLATFORM_IS(MACOS)
+ const char* kEGLLib = "libEGL" DAWN_ANGLE_LIBS_SUFFIX ".dylib";
+ #else
+-const char* kEGLLib = "libEGL" DAWN_ANGLE_LIBS_SUFFIX ".so";
++// jwebgpu: load the versioned name, which every Linux system with an EGL driver has. The bare
++// libEGL.so is a development symlink that only exists when the EGL headers are installed.
++const char* kEGLLib = "libEGL" DAWN_ANGLE_LIBS_SUFFIX ".so.1";
+ #endif
+ 
+ }  // anonymous namespace

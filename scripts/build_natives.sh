@@ -6,13 +6,18 @@
 #   ./scripts/build_natives.sh linux-x86_64
 #
 # Targets:
-#   linux-x86_64, linux-aarch64      Vulkan (X11 and Wayland surfaces) and Null.
+#   linux-x86_64, linux-aarch64      Vulkan, OpenGL, OpenGL ES (X11 and Wayland surfaces) and Null.
 #   windows-x86_64, windows-aarch64  Direct3D 12, Direct3D 11, Vulkan and Null.
 #   macos-x86_64, macos-aarch64      Metal and Null.
 #   android-arm64-v8a, android-x86_64
-#                                    Vulkan and Null, cross compiled with the Android NDK from Linux
-#                                    or macOS. Only 64-bit ABIs are built, because the generated
-#                                    struct layouts assume 64-bit pointers.
+#                                    Vulkan, OpenGL ES and Null, cross compiled with the Android NDK
+#                                    from Linux or macOS. Only 64-bit ABIs are built, because the
+#                                    generated struct layouts assume 64-bit pointers.
+#
+# The OpenGL and OpenGL ES backends only offer adapters in compatibility mode (a request with
+# featureLevel set to Compatibility). They load the system's EGL library at run time, so nothing
+# extra is bundled. Windows falls back to Direct3D 11 instead, because desktop Windows has no
+# system EGL library, and macOS has Metal everywhere.
 #   fetch                            Only downloads the Dawn sources and their dependencies.
 #
 # A desktop target must be built on its own platform, except the two macOS targets, which can be cross
@@ -122,6 +127,26 @@ fetch_sources() {
 
   log "Fetching Dawn third-party dependencies"
   "$(find_python)" "${SRC_DIR}/tools/fetch_dawn_dependencies.py" --directory "$(native_path "${SRC_DIR}")"
+  apply_patches
+}
+
+# Applies the small patches in scripts/natives/patches to the Dawn checkout. A patch that is already applied is
+# skipped, so this is safe to run again. A patch that neither applies nor is applied fails the build, which is what
+# happens when a Dawn bump changes the patched code; refresh the patch against the new commit then.
+apply_patches() {
+  local patch name
+  for patch in "${SCRIPT_DIR}"/natives/patches/*.patch; do
+    [ -f "${patch}" ] || continue
+    name="$(basename "${patch}")"
+    if git -C "${SRC_DIR}" apply --reverse --check "$(native_path "${patch}")" >/dev/null 2>&1; then
+      log "Dawn patch ${name}: already applied"
+    elif git -C "${SRC_DIR}" apply --check "$(native_path "${patch}")" >/dev/null 2>&1; then
+      git -C "${SRC_DIR}" apply "$(native_path "${patch}")"
+      log "Dawn patch ${name}: applied"
+    else
+      die "The Dawn patch ${name} does not apply to ${DAWN_COMMIT}; refresh it for this commit."
+    fi
+  done
 }
 
 # Prints the cmake generator arguments, one per line.
@@ -240,6 +265,23 @@ verify_linux_surfaces() {
   fi
 }
 
+# Checks that the OpenGL backends that were switched on really made it into the build, so a cache entry left over
+# from an older configuration cannot silently drop the fallback.
+verify_gl_backends() {
+  local build_dir="$1" desktop_gl="$2" cache
+  cache="${build_dir}/CMakeCache.txt"
+  grep -q '^DAWN_ENABLE_OPENGLES:BOOL=ON$' "${cache}" || die "OpenGL ES was switched on, but Dawn was configured without it."
+  [ -n "$(find "${build_dir}" -name 'BackendGL.cpp.o' -print -quit)" ] ||
+    die "The OpenGL backends were switched on, but Dawn's OpenGL backend was not compiled."
+  if [ "${desktop_gl}" = "ON" ]; then
+    grep -q '^DAWN_ENABLE_DESKTOP_GL:BOOL=ON$' "${cache}" ||
+      die "Desktop OpenGL was switched on, but Dawn was configured without it."
+    log "OpenGL and OpenGL ES backends: present"
+  else
+    log "OpenGL ES backend: present"
+  fi
+}
+
 # Writes licenses.txt next to a finished library: the full license text of Dawn and of every project compiled into
 # it, which their licenses (BSD 3-Clause, Apache 2.0 and MIT) require to travel with the binary. The C++ runtimes
 # linked in statically (GCC's runtime library exception, LLVM's exception for libc++, and Microsoft's runtime terms)
@@ -258,6 +300,12 @@ write_licenses() {
   )
   if [ "${os}" = "windows" ]; then
     entries+=("DirectX-Headers|third_party/directx-headers/src/LICENSE")
+  fi
+  if [ "${os}" = "linux" ] || [ "${os}" = "android" ]; then
+    entries+=(
+      "EGL-Registry (Khronos EGL headers)|third_party/EGL-Registry/LICENSE"
+      "OpenGL-Registry (Khronos OpenGL headers)|third_party/OpenGL-Registry/LICENSE"
+    )
   fi
   {
     echo "This library is Dawn (https://dawn.googlesource.com/dawn) at commit ${DAWN_COMMIT}, built for jwebgpu."
@@ -307,8 +355,6 @@ build() {
     -DDAWN_FETCH_DEPENDENCIES=OFF
     -DDAWN_BUILD_MONOLITHIC_LIBRARY=SHARED
     -DDAWN_ENABLE_NULL=ON
-    -DDAWN_ENABLE_DESKTOP_GL=OFF
-    -DDAWN_ENABLE_OPENGLES=OFF
     -DDAWN_BUILD_SAMPLES=OFF
     -DDAWN_BUILD_TESTS=OFF
     -DDAWN_BUILD_NODE_BINDINGS=OFF
@@ -318,7 +364,6 @@ build() {
     -DTINT_BUILD_CMD_TOOLS=OFF
     -DTINT_BUILD_TESTS=OFF
     -DTINT_BUILD_IR_BINARY=OFF
-    -DTINT_BUILD_GLSL_WRITER=OFF
     -DTINT_BUILD_GLSL_VALIDATOR=OFF
     -DTINT_BUILD_SPV_READER=OFF
     -DDAWN_SUPPORTS_CXX_MODULES=OFF
@@ -342,11 +387,14 @@ build() {
         "-DANDROID_PLATFORM=android-${JWEBGPU_ANDROID_API:-26}"
         -DANDROID_STL=c++_static
         -DDAWN_ENABLE_VULKAN=ON
+        -DDAWN_ENABLE_DESKTOP_GL=OFF
+        -DDAWN_ENABLE_OPENGLES=ON
         -DDAWN_ENABLE_D3D11=OFF
         -DDAWN_ENABLE_D3D12=OFF
         -DDAWN_ENABLE_METAL=OFF
         -DDAWN_USE_X11=OFF
         -DDAWN_USE_WAYLAND=OFF
+        -DTINT_BUILD_GLSL_WRITER=ON
         -DTINT_BUILD_HLSL_WRITER=OFF
         -DTINT_BUILD_MSL_WRITER=OFF
         "-DCMAKE_C_FLAGS=${compile_flags}"
@@ -363,11 +411,14 @@ build() {
       local compile_flags="-fvisibility=hidden -ffunction-sections -fdata-sections"
       args+=(
         -DDAWN_ENABLE_VULKAN=ON
+        -DDAWN_ENABLE_DESKTOP_GL=ON
+        -DDAWN_ENABLE_OPENGLES=ON
         -DDAWN_ENABLE_D3D11=OFF
         -DDAWN_ENABLE_D3D12=OFF
         -DDAWN_ENABLE_METAL=OFF
         -DDAWN_USE_X11="${x11}"
         -DDAWN_USE_WAYLAND="${wayland}"
+        -DTINT_BUILD_GLSL_WRITER=ON
         -DTINT_BUILD_HLSL_WRITER=OFF
         -DTINT_BUILD_MSL_WRITER=OFF
         "-DCMAKE_C_FLAGS=${compile_flags}"
@@ -381,9 +432,12 @@ build() {
       # functions are marked __declspec(dllexport) by webgpu.h, so no export list is needed.
       args+=(
         -DDAWN_ENABLE_VULKAN=ON
+        -DDAWN_ENABLE_DESKTOP_GL=OFF
+        -DDAWN_ENABLE_OPENGLES=OFF
         -DDAWN_ENABLE_D3D11=ON
         -DDAWN_ENABLE_D3D12=ON
         -DDAWN_ENABLE_METAL=OFF
+        -DTINT_BUILD_GLSL_WRITER=OFF
         -DTINT_BUILD_HLSL_WRITER=ON
         -DTINT_BUILD_MSL_WRITER=OFF
         -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
@@ -403,9 +457,12 @@ build() {
       esac
       args+=(
         -DDAWN_ENABLE_VULKAN=OFF
+        -DDAWN_ENABLE_DESKTOP_GL=OFF
+        -DDAWN_ENABLE_OPENGLES=OFF
         -DDAWN_ENABLE_D3D11=OFF
         -DDAWN_ENABLE_D3D12=OFF
         -DDAWN_ENABLE_METAL=ON
+        -DTINT_BUILD_GLSL_WRITER=OFF
         -DTINT_BUILD_HLSL_WRITER=OFF
         -DTINT_BUILD_MSL_WRITER=ON
         "-DCMAKE_OSX_ARCHITECTURES=${cmake_arch}"
@@ -431,6 +488,9 @@ build() {
   if [ "${os}" = "linux" ]; then
     report_linux_dependencies "${built}"
     verify_linux_surfaces "${build_dir}" "${x11}" "${wayland}"
+    verify_gl_backends "${build_dir}" ON
+  elif [ "${os}" = "android" ]; then
+    verify_gl_backends "${build_dir}" OFF
   fi
 
   # Each desktop library goes into the resources of its own natives module, which becomes the
