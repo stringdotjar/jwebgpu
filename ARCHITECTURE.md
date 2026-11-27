@@ -3,6 +3,9 @@
 jwebgpu is organized into multiple Gradle modules: one platform-neutral API, one thin backend per platform, and a
 build-time generator that writes most of the code.
 
+This document describes how jwebgpu works inside, for contributors. To learn how to **use** the bindings, read the
+[handbook](handbook/README.md), starting with its [Architecture for Users](handbook/architecture.md) guide.
+
 ## Core idea: one neutral API, three thin backends
 
 ```
@@ -104,7 +107,9 @@ The API mirrors the browser's WebGPU names so the MDN documentation maps one to 
 - Bit flags are classes of `long` constants, and the sentinel values live in `GpuConstants`.
 - Descriptors are mutable classes with public fields, a constructor that applies the defaults of the C header, and a
   `reset()` method. Nested structs are final, preallocated fields. Arrays are a fixed-capacity array plus an `int` count.
-- Extension structs extend `GpuChainedStruct`; extensible descriptors have a `nextInChain` field.
+- Extension structs extend `GpuChainedStruct`; extensible descriptors have a `nextInChain` field. Every backend calls
+  `GpuChainedStruct.checkLength(...)` while it walks a chain, so a chain whose `next` field loops back fails with an
+  exception after `GpuChainedStruct.MAX_LENGTH` structs instead of hanging.
 - Objects are abstract classes on top of `GpuObject`. A method that returns an object also has an overload that refills an
   existing wrapper. Raw bytes are passed as a `ByteBuffer` or as `byte[]`, `short[]`, `int[]` or `float[]` with an offset
   and a count.

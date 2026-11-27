@@ -565,7 +565,9 @@ final class TeaVmSpecial {
 
   private static JsGpuCanvasContext createContext(TeaVmGpuInstance self, GpuSurfaceDescriptor descriptor) {
     TeaVmGpuInstance.js(self);
+    int length = 0;
     for (GpuChainedStruct c = descriptor.nextInChain; c != null; c = c.next) {
+      GpuChainedStruct.checkLength(++length);
       if (c instanceof TeaVmSurfaceSourceCanvas source) {
         JsGpuCanvasContext ctx = getContext(source.resolve());
         if (TeaVmAsync.isNothing(ctx)) {
