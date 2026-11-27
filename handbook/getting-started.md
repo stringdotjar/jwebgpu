@@ -248,7 +248,7 @@ changes. A local checkout has no Dawn library until you build one; see
   first, at the very top of `main(...)` or `Application.onCreate()`.
 - **Forgetting the natives jar.** `JWebGpuFfm.install()` fails with a message that names the exact
   `jwebgpu-natives-<target>` module to add. Add it as a `runtimeOnly` dependency.
-- **Forgetting `--enable-native-access=ALL-UNNAMED`.** The program still runs today, but prints a warning.
+- **Forgetting `--enable-native-access=ALL-UNNAMED`.** The program still runs, but prints a warning.
 - **Opening the web page from `file://`.** WebGPU needs a secure context, and a WasmGC module cannot load from a
   file. Serve the page from `http://localhost` or over HTTPS.
 - **Running on a 32-bit Android ABI.** Only arm64-v8a and x86_64 are supported.
