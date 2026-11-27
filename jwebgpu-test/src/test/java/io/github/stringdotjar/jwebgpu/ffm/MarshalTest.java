@@ -26,7 +26,9 @@ package io.github.stringdotjar.jwebgpu.ffm;
 import org.junit.jupiter.api.Test;
 
 import io.github.stringdotjar.jwebgpu.GpuBindGroupDescriptor;
+import io.github.stringdotjar.jwebgpu.GpuCallbackMode;
 import io.github.stringdotjar.jwebgpu.GpuConstants;
+import io.github.stringdotjar.jwebgpu.GpuDeviceDescriptor;
 import io.github.stringdotjar.jwebgpu.GpuFutureWaitInfo;
 import io.github.stringdotjar.jwebgpu.GpuLimits;
 import io.github.stringdotjar.jwebgpu.GpuLoadOp;
@@ -154,6 +156,26 @@ class MarshalTest {
     assertEquals(0, Mem.getInt(dsp + off(dsName, "stencilReadOnly")));
     assertEquals(0L, Mem.getLong(p + off("WGPURenderPassDescriptor", "occlusionQuerySet")));
     assertEquals(0L, Mem.getLong(p + off("WGPURenderPassDescriptor", "timestampWrites")));
+  }
+
+  @Test
+  void deviceLostModeFallsBackWhenNull() {
+    GpuDeviceDescriptor d = new GpuDeviceDescriptor();
+    d.deviceLostCallback = (device, reason, message) -> {
+    };
+    long info = off("WGPUDeviceDescriptor", "deviceLostCallbackInfo");
+    long mode = info + off("WGPUDeviceLostCallbackInfo", "mode");
+    long slot = info + off("WGPUDeviceLostCallbackInfo", "userdata1");
+
+    Scratch s = Scratch.begin();
+    long p = FfmGpuDeviceDescriptorStruct.put(s, d);
+    assertEquals(GpuCallbackMode.ALLOW_PROCESS_EVENTS.value, Mem.getInt(p + mode));
+    CallbackTable.take(Mem.getLong(p + slot));
+
+    d.deviceLostMode = GpuCallbackMode.ALLOW_SPONTANEOUS;
+    p = FfmGpuDeviceDescriptorStruct.put(s, d);
+    assertEquals(GpuCallbackMode.ALLOW_SPONTANEOUS.value, Mem.getInt(p + mode));
+    CallbackTable.take(Mem.getLong(p + slot));
   }
 
   @Test
