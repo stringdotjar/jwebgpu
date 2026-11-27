@@ -54,7 +54,7 @@ final class Fakes {
   }
 
   /** An instance that records the calls the tests care about. */
-  static final class FakeInstance extends GpuInstance {
+  static class FakeInstance extends GpuInstance {
 
     int processEventsCalls;
     GpuRequestAdapterCallback lastCallback;
