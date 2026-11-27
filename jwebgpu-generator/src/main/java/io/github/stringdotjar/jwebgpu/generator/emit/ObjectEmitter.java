@@ -104,6 +104,14 @@ final class ObjectEmitter {
     return new GeneratedFile(EnumEmitter.path("GpuObject"), w.toSource());
   }
 
+  /**
+   * The most extension structs one chain may hold before a backend gives up on it.
+   *
+   * <p>WebGPU rejects a chain that holds the same kind of struct twice, so a valid chain is never longer than the
+   * number of extension struct kinds. The chain emitters check that this limit stays above that number.
+   */
+  static final int MAX_CHAIN_LENGTH = 64;
+
   GeneratedFile emitChainedStruct() {
     SourceWriter w = new SourceWriter(Names.pkg());
     String nullable = w.imp("org.jetbrains.annotations.Nullable");
@@ -122,11 +130,29 @@ final class ObjectEmitter {
         + "<p>The tag that tells the native library which kind of struct a carriage is comes from "
         + "{@link #sType()}, so there is nothing to set by hand.");
     w.openType("public abstract class GpuChainedStruct");
+    w.doc("The most extension structs one chain may hold.\n\n"
+        + "<p>WebGPU rejects a chain that holds the same kind of struct twice, so a real chain is always much "
+        + "shorter than this. A longer chain almost always means that a {@link #next} field points back to an "
+        + "earlier struct, which would make the chain loop forever.");
+    w.line("public static final int MAX_LENGTH = " + MAX_CHAIN_LENGTH + ";");
+    w.blank();
     w.doc("The next extension struct in the chain, or {@code null} if this is the last one.");
     w.line("public @" + nullable + " GpuChainedStruct next;");
     w.blank();
     w.doc("Creates the struct. Only the generated extension structs call this.");
     w.line("protected GpuChainedStruct() {}");
+    w.blank();
+    w.doc("Checks the length of a chain while a backend walks it, so a chain that loops fails fast.\n\n"
+        + "<p>Backends call this once for every struct they visit, counting from 1. Application code does not need "
+        + "to call it.",
+        List.of("@param length The number of structs visited so far, including the current one.",
+            "@throws IllegalArgumentException If {@code length} is more than {@link #MAX_LENGTH}."));
+    w.open("public static void checkLength(int length)");
+    w.open("if (length > MAX_LENGTH)");
+    w.line("throw new IllegalArgumentException(\"The extension chain has more than \" + MAX_LENGTH + \" structs. \"");
+    w.line("    + \"A next field probably points back to an earlier struct, so the chain loops forever.\");");
+    w.close();
+    w.close();
     w.blank();
     w.doc("Returns the tag that tells the native library which extension struct this is.",
         List.of("@return The native {@code WGPUSType} number of this struct."));

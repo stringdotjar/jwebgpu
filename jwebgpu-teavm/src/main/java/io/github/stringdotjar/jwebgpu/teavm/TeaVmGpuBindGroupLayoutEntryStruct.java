@@ -91,7 +91,9 @@ final class TeaVmGpuBindGroupLayoutEntryStruct {
     putStorageTexture(t, e.storageTexture.access != GpuStorageTextureAccess.BINDING_NOT_USED
         ? storage.fill(e.storageTexture) : null);
     JSObject ext = null;
+    int length = 0;
     for (GpuChainedStruct c = e.nextInChain; c != null; c = c.next) {
+      GpuChainedStruct.checkLength(++length);
       if (c instanceof GpuExternalTextureBindingLayout) {
         ext = external;
       } else {
