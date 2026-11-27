@@ -72,15 +72,17 @@ include(
 )
 
 // One module per desktop target holds that target's Dawn library, so an application only bundles the platforms it
-// ships to. The modules need no build file of their own; the convention plugin sets them up.
+// ships to. The modules are grouped under jwebgpu-natives (for example :jwebgpu-natives:jwebgpu-natives-linux-x86_64)
+// and need no build file of their own; the convention plugin sets them up.
 val nativeTargets = listOf(
   "linux-x86_64", "linux-aarch64", "windows-x86_64", "windows-aarch64", "macos-x86_64", "macos-aarch64"
 )
 for (target in nativeTargets) {
-  include("jwebgpu-natives-$target")
+  val path = ":jwebgpu-natives:jwebgpu-natives-$target"
+  include(path)
   // The library of a target is never committed, so a fresh checkout has no folder for it, and Gradle refuses a
   // project without one.
-  project(":jwebgpu-natives-$target").projectDir = file("jwebgpu-natives/$target").also { it.mkdirs() }
+  project(path).projectDir = file("jwebgpu-natives/jwebgpu-natives-$target").also { it.mkdirs() }
 }
 
 if (includeAndroid) {

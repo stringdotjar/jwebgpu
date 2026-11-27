@@ -46,8 +46,8 @@ The rules that shape this layout:
   `windows-aarch64`, `macos-x86_64`, `macos-aarch64`). Each is a jar with no classes whose only content is that target's
   Dawn library at `natives/<target>/<library name>`, which is where the FFM loader looks. They are separate modules, and not
   classifier artifacts of one module, so an application bundles only the platforms it ships to and so that dependency
-  substitution in a composite build works per module. They have no build file: `settings.gradle.kts` includes them from the
-  directories `jwebgpu-natives/<target>/`, and the convention plugin `jwebgpu.natives-jar` sets them up. Their Javadoc jar is
+  substitution in a composite build works per module. They have no build file: `settings.gradle.kts` includes them as
+  `:jwebgpu-natives:jwebgpu-natives-<target>` from the directories `jwebgpu-natives/jwebgpu-natives-<target>/`, and the convention plugin `jwebgpu.natives-jar` sets them up. Their Javadoc jar is
   empty and their sources jar holds the license texts. The library is gitignored, so a build without it produces an empty jar
   and prints a warning, but every publishing task fails, so a release can never ship an empty natives jar. Android needs no
   such module because the `jwebgpu-jni` AAR carries its own libraries.

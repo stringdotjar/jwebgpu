@@ -4,8 +4,8 @@ import java.util.Locale
 /**
  * Describes where the desktop Dawn libraries live and which one belongs to the machine running the build.
  *
- * Every desktop target has its own module, `jwebgpu-natives-<target>`, whose single resource is the library at
- * `natives/<target>/<library name>`. The target and library names follow the same rules as the desktop backend's
+ * Every desktop target has its own module, `:jwebgpu-natives:jwebgpu-natives-<target>`, stored in the folder
+ * `jwebgpu-natives/jwebgpu-natives-<target>`, whose single resource is the library at `natives/<target>/<library name>`. The target and library names follow the same rules as the desktop backend's
  * loader, so a build script can pick the module the loader would look for.
  */
 object JWebGpuNatives {
@@ -23,6 +23,9 @@ object JWebGpuNatives {
   /** Returns the name of the module that holds the library of a target. */
   fun moduleName(target: String): String = "jwebgpu-natives-$target"
 
+  /** Returns the Gradle path of the module that holds the library of a target. */
+  fun projectPath(target: String): String = ":jwebgpu-natives:${moduleName(target)}"
+
   /** Returns the file name of the Dawn library for a target. */
   fun libraryName(target: String): String = when {
     target.startsWith("windows") -> "webgpu_dawn.dll"
@@ -37,7 +40,7 @@ object JWebGpuNatives {
    * @param target One of [TARGETS].
    */
   fun libraryFile(rootDir: File, target: String): File =
-    File(rootDir, "jwebgpu-natives/$target/src/main/resources/natives/$target/${libraryName(target)}")
+    File(rootDir, "jwebgpu-natives/${moduleName(target)}/src/main/resources/natives/$target/${libraryName(target)}")
 
   /** Returns the target of the machine running the build, or null if jwebgpu has no library for it. */
   fun hostTarget(): String? {

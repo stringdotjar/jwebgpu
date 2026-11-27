@@ -224,7 +224,7 @@ makes Linux load `libEGL.so.1`, the name every EGL driver installs. Patches that
 no longer applies after a Dawn bump stops the build, so refresh it then.
 The script also accepts `fetch`, which only downloads the Dawn sources.
 
-Desktop libraries are copied to `jwebgpu-natives/<target>/src/main/resources/natives/<target>/` as `libwebgpu_dawn.so`,
+Desktop libraries are copied to `jwebgpu-natives/jwebgpu-natives-<target>/src/main/resources/natives/<target>/` as `libwebgpu_dawn.so`,
 `webgpu_dawn.dll` or `libwebgpu_dawn.dylib`, which makes them the content of the `jwebgpu-natives-<target>` module. Publishing
 a natives module fails if its library is missing. Android libraries are copied to `jwebgpu-jni/src/main/jniLibs/<abi>/` as
 `libwebgpu_dawn.so`, with the C++ runtime linked statically so apps need no `libc++_shared.so`. Both locations are gitignored. Next to every library the script also writes `licenses.txt`, the full license texts

@@ -56,7 +56,7 @@ dependencies {
 
   // The Dawn library of this machine. The jwebgpu-ffm jar carries no library, so the tests get it from the natives
   // module of the host platform only.
-  JWebGpuNatives.hostTarget()?.let { testRuntimeOnly(project(":" + JWebGpuNatives.moduleName(it))) }
+  JWebGpuNatives.hostTarget()?.let { testRuntimeOnly(project(JWebGpuNatives.projectPath(it))) }
 
   testRuntimeOnly(libs.junit.platform.launcher)
   testImplementation(platform(libs.junit.bom))
