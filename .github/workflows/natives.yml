@@ -62,7 +62,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.JWEBGPU_DAWN_CACHE }}/src
-          key: dawn-src-Linux-${{ hashFiles('scripts/dawn.version') }}
+          key: dawn-src-Linux-${{ hashFiles('scripts/dawn.version', 'scripts/natives/patches/**') }}
 
       - name: Fetch the Dawn sources
         run: |
@@ -147,7 +147,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ matrix.cache_dir }}/src
-          key: dawn-src-${{ runner.os }}-${{ hashFiles('scripts/dawn.version') }}
+          key: dawn-src-${{ runner.os }}-${{ hashFiles('scripts/dawn.version', 'scripts/natives/patches/**') }}
 
       - name: Fetch the Dawn sources
         run: ./scripts/build_natives.sh fetch
@@ -216,7 +216,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/jwebgpu/dawn/src
-          key: dawn-src-Android-${{ hashFiles('scripts/dawn.version') }}
+          key: dawn-src-Android-${{ hashFiles('scripts/dawn.version', 'scripts/natives/patches/**') }}
 
       - name: Fetch the Dawn sources
         run: ./scripts/build_natives.sh fetch

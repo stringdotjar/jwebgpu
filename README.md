@@ -119,6 +119,32 @@ GpuInstance instance = JWebGpu.createInstance();
 
 If no backend has been installed, `JWebGpu.createInstance()` throws an `IllegalStateException` with a clear message.
 
+### Compatibility mode and the OpenGL fallback
+
+Full WebGPU (the **core** feature level) needs Vulkan, Metal or Direct3D 12. Older or cheaper hardware often only has
+OpenGL ES 3.1, desktop OpenGL 4.3 or Direct3D 11, and WebGPU's **compatibility mode** is a slightly smaller subset that runs
+there too. Dawn only offers OpenGL and OpenGL ES adapters in compatibility mode, so ask for it when core is not available.
+`GpuAdapterFallback` tries a list of adapter options in order and hands you the first adapter it finds:
+
+```java
+// Created once at startup. addDefaults() tries core on any graphics API, then compatibility mode on any
+// graphics API, which finds OpenGL ES, OpenGL or Direct3D 11 when nothing better exists.
+GpuAdapterFallback fallback = new GpuAdapterFallback().addDefaults();
+fallback.request(instance, GpuCallbackMode.ALLOW_PROCESS_EVENTS, (status, adapter, message) -> {
+  if (adapter != null) {
+    boolean core = GpuAdapterFallback.supportsCore(adapter);
+    // In compatibility mode, add GpuFeatureName.CORE_FEATURES_AND_LIMITS to the device's required
+    // features only when core is true. GpuCompatibilityModeLimits can be chained onto GpuLimits to read
+    // the extra limits of compatibility mode.
+  }
+});
+```
+
+To prefer OpenGL over everything else, add explicit attempts first, for example
+`.add(GpuFeatureLevel.COMPATIBILITY, GpuBackendType.OPENGLES)`. The OpenGL backends are compiled into the Linux and Android
+natives and use the system's EGL driver; Windows falls back to Direct3D 11 and macOS always has Metal. In the browser the
+backend type is ignored, but `featureLevel` is passed on, so the same code asks the browser for a compatibility adapter.
+
 ### Running on the desktop
 
 The desktop backend calls native code through Java's Foreign Function and Memory API, which Java only allows when it is
