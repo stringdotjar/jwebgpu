@@ -126,8 +126,10 @@ final class TeaVmGpuRenderPassDescriptorStruct {
       }
       TeaVmProps.putObjTimestampWrites(t, timestampWrites.fill(d.timestampWrites));
     }
+    int length = 0;
     GpuChainedStruct c = d.nextInChain;
     while (c != null) {
+      GpuChainedStruct.checkLength(++length);
       if (c instanceof GpuRenderPassMaxDrawCount e) {
         TeaVmProps.putNumMaxDrawCount(t, (double) e.maxDrawCount);
       } else {

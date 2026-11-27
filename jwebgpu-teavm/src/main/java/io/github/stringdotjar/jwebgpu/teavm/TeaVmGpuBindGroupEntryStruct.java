@@ -77,7 +77,9 @@ final class TeaVmGpuBindGroupEntryStruct {
     } else if (e.textureView != null) {
       putResource(t, TeaVmGpuTextureView.js(e.textureView));
     } else {
+      int length = 0;
       for (GpuChainedStruct c = e.nextInChain; c != null; c = c.next) {
+        GpuChainedStruct.checkLength(++length);
         if (c instanceof GpuExternalTextureBindingEntry x) {
           putResource(t, TeaVmGpuExternalTexture.js(x.externalTexture));
           return;

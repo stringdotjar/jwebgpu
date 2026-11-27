@@ -51,6 +51,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -191,6 +192,21 @@ class MarshalTest {
     p = JniGpuDeviceDescriptorStruct.put(s, d);
     assertEquals(GpuCallbackMode.ALLOW_SPONTANEOUS.value, s.getInt(p + mode));
     CallbackTable.take(s.getLong(p + slot));
+  }
+
+  @Test
+  void loopedChainFailsInsteadOfHanging() {
+    GpuShaderSourceWGSL first = new GpuShaderSourceWGSL();
+    GpuShaderSourceWGSL second = new GpuShaderSourceWGSL();
+    first.next = second;
+    second.next = first;
+    GpuShaderModuleDescriptor d = new GpuShaderModuleDescriptor();
+    d.nextInChain = first;
+
+    Scratch s = Scratch.begin();
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        () -> JniGpuShaderModuleDescriptorStruct.put(s, d));
+    assertTrue(e.getMessage().contains("loops"));
   }
 
   @Test

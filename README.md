@@ -44,6 +44,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit together.
 
 ## Using jwebgpu
 
+> [!TIP]
+> New to jwebgpu or to WebGPU? The **[handbook](handbook/README.md)** is a beginner-friendly guide to the bindings,
+> from your first adapter to a full triangle walkthrough, compute, garbage-free frames, the platforms, and compatibility
+> mode. This section is the quick start.
+
 jwebgpu is on **Maven Central** under the group `io.github.stringdotjar`. Replace `<version>` below with the latest
 version shown by the badge at the top. Make sure `mavenCentral()` is in your repositories:
 

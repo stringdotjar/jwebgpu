@@ -334,9 +334,11 @@ final class TeaVmStructEmitter {
       body.add("}");
       return;
     }
+    body.add("int length = 0;");
     body.add("GpuChainedStruct c = d.nextInChain;");
     w.imp(Names.pkg() + ".GpuChainedStruct");
     body.add("while (c != null) {");
+    body.add("  GpuChainedStruct.checkLength(++length);");
     boolean first = true;
     for (Struct e : supported) {
       String api = w.imp(Names.pkg() + "." + Names.type(e.cName()));

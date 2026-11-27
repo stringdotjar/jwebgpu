@@ -46,6 +46,7 @@ import io.github.stringdotjar.jwebgpu.generator.model.Struct;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -175,6 +176,21 @@ class MarshalTest {
     p = FfmGpuDeviceDescriptorStruct.put(s, d);
     assertEquals(GpuCallbackMode.ALLOW_SPONTANEOUS.value, Mem.getInt(p + mode));
     CallbackTable.take(Mem.getLong(p + slot));
+  }
+
+  @Test
+  void loopedChainFailsInsteadOfHanging() {
+    GpuShaderSourceWGSL first = new GpuShaderSourceWGSL();
+    GpuShaderSourceWGSL second = new GpuShaderSourceWGSL();
+    first.next = second;
+    second.next = first;
+    GpuShaderModuleDescriptor d = new GpuShaderModuleDescriptor();
+    d.nextInChain = first;
+
+    Scratch s = Scratch.begin();
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        () -> FfmGpuShaderModuleDescriptorStruct.put(s, d));
+    assertTrue(e.getMessage().contains("loops"));
   }
 
   @Test
