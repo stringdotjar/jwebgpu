@@ -3,7 +3,7 @@
 We welcome contributions! Whether you're fixing bugs, adding new features, or improving documentation, your help is appreciated. To ensure a smooth process for everyone, please follow these guidelines.
 
 > [!TIP]
-> You can learn more about the project structure and how to test it locally in the [Project Structure](ARCHITECTURE.md) and [Compiling](COMPILING.md) documents.
+> You can learn more about the project structure and how to test it locally in the [Project Structure](ARCHITECTURE.md) and [Compiling](COMPILING.md) documents. To learn how the bindings are used, read the [handbook](handbook/README.md), and keep its guides up to date when a change affects the public API or its behavior.
 
 > [!IMPORTANT]
 > ## Our Stance on AI
