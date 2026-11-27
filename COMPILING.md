@@ -200,10 +200,10 @@ Pick the target that matches your machine:
 
 | Target | Build it on | Backends compiled in |
 |--------|-------------|----------------------|
-| `linux-x86_64`, `linux-aarch64` | Linux with the same CPU | Vulkan (X11 and Wayland surfaces), Null |
+| `linux-x86_64`, `linux-aarch64` | Linux with the same CPU | Vulkan, OpenGL, OpenGL ES (X11 and Wayland surfaces), Null |
 | `windows-x86_64`, `windows-aarch64` | Windows with the same CPU | Direct3D 12, Direct3D 11, Vulkan, Null |
 | `macos-x86_64`, `macos-aarch64` | macOS (either CPU can build both) | Metal, Null |
-| `android-arm64-v8a`, `android-x86_64` | Linux or macOS with the Android NDK r28+ | Vulkan (`ANativeWindow` surfaces), Null |
+| `android-arm64-v8a`, `android-x86_64` | Linux or macOS with the Android NDK r28+ | Vulkan, OpenGL ES (`ANativeWindow` surfaces), Null |
 
 Every library CI builds covers all of that platform's window systems at once: Linux has X11 (Xlib and XCB) and Wayland
 compiled in and picks one at run time, Windows uses Win32 windows, macOS uses Metal layers, and Android uses `ANativeWindow`.
@@ -211,6 +211,17 @@ Only the 64-bit Android ABIs are built, because the generated struct layouts ass
 1.1 (which almost no 32-bit-only phones have), and Google Play has required 64-bit code since 2019.
 
 The **Null backend** is a fake GPU that does nothing. Unit tests use it so they can run on machines without a graphics card.
+
+The **OpenGL and OpenGL ES backends** are the fallback for machines without a working Vulkan driver. Dawn only offers their
+adapters in compatibility mode (see [Compatibility mode and the OpenGL fallback](README.md#compatibility-mode-and-the-opengl-fallback)).
+They load the system's EGL library (`libEGL.so.1` on Linux, `libEGL.so` on Android) at run time, so nothing extra is bundled.
+Windows uses Direct3D 11 as its compatibility mode backend instead, because desktop Windows has no system EGL library, and
+macOS always has Metal.
+
+Dawn itself loads `libEGL.so`, a name that only exists on Linux machines with the EGL development package installed. The
+script therefore applies the small patch in `scripts/natives/patches/linux-versioned-egl.patch` to the Dawn checkout, which
+makes Linux load `libEGL.so.1`, the name every EGL driver installs. Patches that are already applied are skipped, and one that
+no longer applies after a Dawn bump stops the build, so refresh it then.
 The script also accepts `fetch`, which only downloads the Dawn sources.
 
 Desktop libraries are copied to `jwebgpu-natives/<target>/src/main/resources/natives/<target>/` as `libwebgpu_dawn.so`,
@@ -277,7 +288,7 @@ with the NDK. It supports **arm64-v8a and x86_64** only, because the struct layo
 
 1. **Get the Dawn libraries.** CI builds them, and `scripts/build_natives.sh android-arm64-v8a` (or `android-x86_64`) builds
    one yourself and copies it to `jwebgpu-jni/src/main/jniLibs/<abi>/libwebgpu_dawn.so`. That folder is gitignored. The libraries are built for
-   Android 8.0 (API 26) with Vulkan and the Null backend (OpenGL ES is switched off), and link the C++ runtime statically,
+   Android 8.0 (API 26) with Vulkan, OpenGL ES and the Null backend, and link the C++ runtime statically,
    so no `libc++_shared.so` is needed.
 2. **Enable the Android module** (see above) and build:
    ```bash

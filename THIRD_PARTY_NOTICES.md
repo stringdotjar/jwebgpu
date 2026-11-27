@@ -49,8 +49,8 @@ writes them to `licenses.txt` next to the library: each `jwebgpu-natives-<target
 `natives/<target>/licenses.txt`, and the `jwebgpu-jni` AAR holds one copy at `META-INF/jwebgpu/dawn-licenses.txt`.
 Applications that redistribute these libraries should keep those files (or show their contents) with the application.
 
-These are the projects that the build linked into the library at the pinned commit (Linux x86_64 with the Vulkan and
-Null backends; the Windows and macOS builds add the platform items marked below).
+These are the projects that the build linked into the library at the pinned commit (Linux x86_64 with the Vulkan, OpenGL,
+OpenGL ES and Null backends; the Windows and macOS builds add the platform items marked below).
 
 | Component | License | How it is included | License file in the Dawn checkout |
 |-----------|---------|--------------------|-----------------------------------|
@@ -63,6 +63,8 @@ Null backends; the Windows and macOS builds add the platform items marked below)
 | webgpu-headers | BSD 3-Clause | Headers compiled in | `third_party/webgpu-headers/src/LICENSE` |
 | RenderDoc `renderdoc_app.h` | MIT | Single header compiled in | `third_party/renderdoc/LICENSE.md` |
 | DirectX-Headers (Windows only) | MIT | Headers compiled in | `third_party/directx-headers/LICENSE` |
+| EGL-Registry (Khronos EGL headers, Linux and Android only) | Apache License 2.0 | Headers compiled in | `third_party/EGL-Registry/LICENSE` |
+| OpenGL-Registry (Khronos OpenGL headers, Linux and Android only) | Apache License 2.0 | Headers compiled in | `third_party/OpenGL-Registry/LICENSE` |
 | GCC runtime (libstdc++ and libgcc, Linux only) | GPL 3.0 with the GCC Runtime Library Exception | Linked statically | Part of the GCC distribution |
 | Microsoft Visual C++ runtime (Windows only) | Microsoft Visual Studio redistributable terms | Linked statically (`/MT`) | Part of Visual Studio |
 
@@ -71,5 +73,5 @@ Notes:
 - The build tools Dawn needs only while compiling (Jinja2, MarkupSafe, glslang, and the like) are not part of the
   binary. glslang, GLFW, protobuf and googletest are not even built, because the matching Dawn options are switched
   off.
-- The Vulkan loader (`libvulkan`), the system graphics drivers, X11, Wayland, `d3dcompiler_47.dll` and the Metal
+- The Vulkan loader (`libvulkan`), the EGL library (`libEGL`), the system graphics drivers, X11, Wayland, `d3dcompiler_47.dll` and the Metal
   frameworks are not bundled. The library finds them on the user's machine at run time.
