@@ -3,6 +3,9 @@
 jwebgpu is organized into multiple Gradle modules: one platform-neutral API, one thin backend per platform, and a
 build-time generator that writes most of the code.
 
+This document describes how jwebgpu works inside, for contributors. To learn how to **use** the bindings, read the
+[handbook](handbook/README.md), starting with its [Architecture for Users](handbook/architecture.md) guide.
+
 ## Core idea: one neutral API, three thin backends
 
 ```
