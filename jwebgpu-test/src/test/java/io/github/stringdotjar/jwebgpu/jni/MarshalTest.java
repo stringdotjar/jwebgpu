@@ -49,6 +49,7 @@ import java.nio.charset.StandardCharsets;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -169,6 +170,21 @@ class MarshalTest {
     assertEquals(0, s.getInt(dsp + off(dsName, "stencilReadOnly")));
     assertEquals(0L, s.getLong(p + off("WGPURenderPassDescriptor", "occlusionQuerySet")));
     assertEquals(0L, s.getLong(p + off("WGPURenderPassDescriptor", "timestampWrites")));
+  }
+
+  @Test
+  void loopedChainFailsInsteadOfHanging() {
+    GpuShaderSourceWGSL first = new GpuShaderSourceWGSL();
+    GpuShaderSourceWGSL second = new GpuShaderSourceWGSL();
+    first.next = second;
+    second.next = first;
+    GpuShaderModuleDescriptor d = new GpuShaderModuleDescriptor();
+    d.nextInChain = first;
+
+    Scratch s = Scratch.begin();
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        () -> JniGpuShaderModuleDescriptorStruct.put(s, d));
+    assertTrue(e.getMessage().contains("loops"));
   }
 
   @Test
