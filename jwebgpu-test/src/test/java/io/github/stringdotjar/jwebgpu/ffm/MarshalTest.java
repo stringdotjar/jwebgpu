@@ -44,6 +44,7 @@ import io.github.stringdotjar.jwebgpu.generator.model.Struct;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -153,6 +154,21 @@ class MarshalTest {
     assertEquals(0, Mem.getInt(dsp + off(dsName, "stencilReadOnly")));
     assertEquals(0L, Mem.getLong(p + off("WGPURenderPassDescriptor", "occlusionQuerySet")));
     assertEquals(0L, Mem.getLong(p + off("WGPURenderPassDescriptor", "timestampWrites")));
+  }
+
+  @Test
+  void loopedChainFailsInsteadOfHanging() {
+    GpuShaderSourceWGSL first = new GpuShaderSourceWGSL();
+    GpuShaderSourceWGSL second = new GpuShaderSourceWGSL();
+    first.next = second;
+    second.next = first;
+    GpuShaderModuleDescriptor d = new GpuShaderModuleDescriptor();
+    d.nextInChain = first;
+
+    Scratch s = Scratch.begin();
+    IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        () -> FfmGpuShaderModuleDescriptorStruct.put(s, d));
+    assertTrue(e.getMessage().contains("loops"));
   }
 
   @Test

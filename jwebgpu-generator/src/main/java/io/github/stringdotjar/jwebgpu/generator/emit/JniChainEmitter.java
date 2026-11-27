@@ -40,8 +40,10 @@ final class JniChainEmitter {
     w.open("static long put(Scratch s, GpuChainedStruct chain)");
     w.line("long first = 0L;");
     w.line("long prev = 0L;");
+    w.line("int length = 0;");
     w.line("GpuChainedStruct c = chain;");
     w.open("while (c != null)");
+    w.line("GpuChainedStruct.checkLength(++length);");
     w.line("long a = putOne(s, c);");
     w.open("if (prev == 0L)");
     w.line("first = a;");
@@ -92,6 +94,11 @@ final class JniChainEmitter {
   }
 
   private List<Struct> extensions() {
-    return spec.structs().stream().filter(s -> s.kind() == StructKind.EXTENSION).toList();
+    List<Struct> out = spec.structs().stream().filter(s -> s.kind() == StructKind.EXTENSION).toList();
+    if (out.size() >= ObjectEmitter.MAX_CHAIN_LENGTH) {
+      throw new IllegalStateException("the specification has " + out.size() + " extension structs, so raise "
+          + "ObjectEmitter.MAX_CHAIN_LENGTH above that");
+    }
+    return out;
   }
 }
