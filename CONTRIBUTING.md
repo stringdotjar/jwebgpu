@@ -51,7 +51,7 @@ Unit tests live in the **`jwebgpu-test`** Gradle module (`:jwebgpu-test:test`). 
 ## Workflow
 
 > [!NOTE]
-> While jwebgpu is in early development, the maintainer commits directly to `master` and does not use pull requests yet. The pull
+> For now, the maintainer commits directly to `master` and does not use pull requests yet. The pull
 > request workflow below is what outside contributions will follow once it is adopted.
 
 To maintain a stable code base, we follow a specific branching model:

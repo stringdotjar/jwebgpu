@@ -106,12 +106,8 @@ align early than to submit a large pull request that needs to be substantially r
 
 # Versioning
 
-jwebgpu is in early development and is published to Maven Central as `0.x.x` versions. While we aim to be
-thoughtful about compatibility, **breaking changes can and will happen at any time during this phase**.
-Do not depend on any API being stable until the project reaches `1.0.0`.
-
-Once the project reaches `1.0.0`, we will follow [Semantic Versioning](https://semver.org):
+jwebgpu is published to Maven Central and follows [Semantic Versioning](https://semver.org):
 
 - **Major** (`x.0.0`): Breaking changes
-- **Minor** (`0.x.0`): Backward-compatible new features
-- **Patch** (`0.0.x`): Backward-compatible bug fixes
+- **Minor** (`x.y.0`): Backward-compatible new features
+- **Patch** (`x.y.z`): Backward-compatible bug fixes

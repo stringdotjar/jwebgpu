@@ -15,8 +15,6 @@ jwebgpu is a standalone library. It **never depends on or refers to any other pr
 Java program. Other projects get it from Maven Central (`io.github.stringdotjar:jwebgpu-*`), or from a local checkout
 through a Gradle composite build while they test unreleased changes.
 
-The project is in early development and is published as `0.x` versions, so its API may still change.
-
 ---
 
 ## Collaboration before implementation
@@ -289,7 +287,7 @@ For widely used classes, fields, methods, or anything central to correctness, in
 
 ## Working with Git
 
-jwebgpu is in early development with a single maintainer, so for now **work is committed directly to `master`**.
+jwebgpu has a single maintainer, so for now **work is committed directly to `master`**.
 There are no branches and no pull requests yet; the pull request workflow will be adopted later (the `.github/`
 templates are already in place for that day).
 

@@ -30,8 +30,7 @@ You do **not** need to build Dawn yourself. The published natives jars and the A
 ## Adding the dependencies
 
 jwebgpu is on **Maven Central** under the group `io.github.stringdotjar`. Replace `<version>` with the latest version
-(shown by the Maven Central badge in the [README](../README.md)). jwebgpu is in early development and published as
-`0.x` versions, so a minor version may still change the API.
+(shown by the Maven Central badge in the [README](../README.md)).
 
 ```kotlin
 repositories {
