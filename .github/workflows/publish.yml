@@ -52,7 +52,7 @@ jobs:
           cache: 'gradle'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           # Android natives will be built by a separate natives workflow, so no NDK or CMake is needed here.
           packages: "platform-tools platforms;android-36 build-tools;36.0.0"
