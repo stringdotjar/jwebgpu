@@ -23,11 +23,6 @@ refill every frame.
 
 jwebgpu is a standalone library with no dependencies on other projects, and it can be used by any Java program.
 
-> [!IMPORTANT]
-> **Status: early development.** jwebgpu is published to Maven Central as `0.x` versions. The generator, the API and
-> the desktop (FFM), Android (JNI) and web (TeaVM) backends work and draw; the web backend is checked in headless Chrome on
-> a software adapter. Until 1.0, a minor version may change the API.
-
 ## Modules
 
 | Module | Purpose | Platform |
